@@ -1,0 +1,8 @@
+{
+  "name": "scarag-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "mkdir -p dist && echo 'frontend placeholder build' > dist/index.html"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "default",
+  "boilerplate_policy": {
+    "allow_patterns": [],
+    "block_patterns": [],
+    "apply_to_repeated_only": true
+  }
+}

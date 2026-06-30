@@ -1,0 +1,9 @@
+{
+  "terms": {
+    "table": ["tabular", "matrix", "spreadsheet"],
+    "score": ["rating", "metric", "value"]
+  },
+  "intent_groups": {
+    "tabular": ["table", "row", "column", "matrix", "matrice"]
+  }
+}
