@@ -266,3 +266,131 @@ Offline-first development note:
 
 ## Offline Evaluation Harness (current baseline)
 An offline-first evaluation runner is available for quality checks of retrieval and grounding without a live LLM.
+```
+- Script: scripts/run_eval.py
+- Datasets: eval/datasets/canonical.jsonl, eval/datasets/regression.jsonl, eval/datasets/drift.jsonl
+- Reports: eval/reports/*.json and eval/reports/*.md
+```
+Note: datasets and reports are generated during evaluation runs and may be empty in a clean clone until you execute the harness.
+Dataset format (JSONL):
+```
+- One JSON object per line.
+- Core fields used by the runner:
+  - id: unique sample id
+  - query: user question
+  - ground_truth: optional expected answer text (for correctness proxy)
+  - profile: optional domain label
+  - expected_sources: optional list of expected source paths for relevance checks.
+  - relevant_chunk)ids: optional list of explicit relevant chunk ids
+  - is_tabular_intent: set true for table-focused questions
+  - max_doc_age_days: optional freshness policy for sample-level compliance checks
+  - allowed_statuses: optional lifecycle status allow list
+```
+Example row:
+```
+{"id:"canoncial-006", "query":"Using the company car master log (206a), what rows or fields are tracked?","ground_truth":"","profile":"corporate","expected_sources":["data/206a COMPANY CARE MASTER LOG-RAG.xls"],"is_tabular_intent":true,"max_doc_age_days":3650:"allowed_statuses":["none","active","pending_review"]}
+```
+Example:
+```
+python scripts/run_eval.py --data data --dataset eval/datasets/canonical.jsonl --dataset evail/datasets/regression.jsonl --generation-mode extractive
+```
+Current offline metric bundle includes:
+```
+- Retrieval: hit_rate_at_k, mrr_at_k, context_precision_at_k
+- Answer proxies: faithfulness_proxy, answer_correctness_proxy
+- Governance checks: freshness_compliance, lifecycle_status_compliance, provenance_completeness, tabular_grounding_compliance
+- Operational: abstention_rate
+```
+Metric notes:
+```
+- hit_hit_rate_at_k: at least one relevant result appears in returned top-k
+- mrr_at_k: reciprocal rank of first relevant result
+- context_precision_at_k: ratio of retrieved results that are relevant
+- faithfulness_proxy and answer_correctness_proxy: lexical overlap proxies for offline iteration; these are intentionally lightweight and can be stricter/looser than semantic judgment
+- tabular_grounding_compliance: measures whether tabular-intent answers are grounded in retrieved tabular evidence
+```
+Note: faithfulness/correctness are lightweight lexical proxies in offline mode; LLM-judged metrics can be added later when live model access is available.
+
+
+## Example Benchmark Snapshot (Reference Validation Run)
+Example canonical benchmark from a prior framework validation run (10 samples, policy corpus with tabular guardrails enabled):
+```
+- Report: eval/reports/canonical_20260602.md
+- hit_rate_at_k: 1.0
+- mrr_at_k: 0.95
+- context_precision_at_k: 0.96
+- freshness_compliance: 1.0
+- lifecycle_status_compliance: 1.0
+- provenance_completeness: 1.0
+- tabular_grounding_compliance: 0.2561
+```
+Interpretation:
+- Retrieval and governance are strong on the current canonical slice.
+- Tabular grounding improved materially after `.xls` ingestion and tabular strict-mode hardening, but remains below target and is an active improvement area.
+Disposable framework-testing workflow:
+- Keep temporary test documents in a disposable folder such as `data/_eval_tmp`
+- Run evaluations against that folder and generated datasets
+- Expunge all generated reports/datasets/test docs/state when done.
+- Treat each benchmark cycle as ephemeral: purge after evaluation, then re-add only the next intended test corpus.
+Cleanup script:
+```
+python scripts/reset_eval_workspace.py --dry-run
+python scripts/reset_eval_workspace.py --confirm --test-docs-path data/_eval_tmp --clear-default-state
+```
+If you also want to remove eval datasets:
+```
+python scripts/reset_eval_workspace.py --confirm --delete-datasets --test-docs-path data/_eval_temp --clear-default-state
+```
+
+
+## Retrieval and Answer-Grounding Flow
+Insert Mermaid diagram
+
+
+## Retrieval Best Practices
+These are the main tuning parameters to consider when adjusting retrieval behavior for a specific implementation.
+- `top-k`: start with a moderate value, such as 5 to 10, for the final context. Retrieve more candidates first if you plan to rerank; then narrow the set before generation.
+- `score threshold`: calibrate it on real queries for the chosen embedding model and corpus. Use it together with `top-k` rather than relying on thresholding alone.
+- `similarity metric`: use the metric recommended by the embedding model or vector store. Cosine similarity is a common, safe default, but normalization can change how cosine similarity and the dot product behave.
+- `chunk size and overlap`: smaller chunks usually improve precision, larger chunks improve context, and overlap should be only as large as needed to preserve continuity. These are ingestion settings, but they strongly shape retrieval quality.
+- `query rewriting`: rewrite vague or conversational user queries into concise search terms when needed, but avoid drifting away from the user's intent.
+- `hybrid search weights`: favor keyword matching for exact tokens such as error codes, part numbers, and policy IDs. Favor vector similarity when semantic matching matters more than exact phrasing.
+- `reranking`: retrieve a broader candidate set first, then rerank before sending context to the LLM. This is often the largest improvement in retrieval quality after chunking.
+
+Current framework status:
+- `top-k` is exposed in the CLI and pipeline config.
+- Minimum weighted retrieval score filtering is exposed as `--min-retrieval-score`.
+- Table-aware score boosting is available using query/header/row token overlap for tabular chunks.
+- Query rewriting is configurable with `--query-rewrite-mode` (`none` or `keywords`).
+- Local similarity metric selection is configurable with `--similarity-metric` (`cosine`, `dot`, `jaccard`).
+- Hybrid rerank blending is configurable via `--hybrid-lexical-weight` and `--hybrid-semantic-weight`.
+- Backend reranking supports `overlap` and `rrf` strategies via `--backend-rerank-strategy`.
+- `show-retrieval-diagnostics` prints the current search query, candidate counts, and final ranked results.
+
+
+## Human-Owned NLP Tailoring
+Domain adaptation requires deliberate human NLP decisions for vocabulary, ontology, and evaluation semantics.
+Use `docs/nlp-tailoring-guide.md` as the implementation checklist for where tailoring is required.
+Use `docs/domain-kickoff-worksheet.md` for a 30-minute structured kickoff session with SMEs.
+
+<excluding Azure, refer to the printout>
+
+
+
+## Confidence/Provenance Framework
+The framework tracks immutable extraction metadata for every chunk, enabling domain-specific confidence assessment.
+
+### Design Philosophy
+- **Extraction metadata** (how data was extracted): immutable and universal
+- **Confidence assessment** (trustworthiness): computed on-demand, domain-specific
+
+Each chunk carries immutable metadata:
+```
+extraction_method: str # e.g., "xlsx_native_row", "pdf_text_layer", "docx_native_table", "text_heuristic_table"
+extraction_ts: float # Unix timestamp when chunk was extracted
+```
+
+Confidence is assessed dynamically via `ConfidenceResolver` using domain-specific rules. Base extraction tiers apply universally:
+
+<table>Extraction Method | Base Tier | Reason |
+xlsx_native_row | high | Native |</table>
