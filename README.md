@@ -17,14 +17,16 @@ The included runtime is a reference stack: a single FastAPI/Uvicorn process that
   SCARAG = Schema-Centric Agnostic RAG
 
 **Schema-Centric:**
--The framework prioritizes field semantics, provenance metadata, and lifecycle signals over naive document-only parsing.
--Retrieval and ground quality improve when data meaning is explicit.
+- The framework prioritizes field semantics, provenance metadata, and lifecycle signals over naive document-only parsing.
+- Retrieval and ground quality improve when data meaning is explicit.
+
 **Agnostic:**
--Domain-agnostic: finance, legal, insurance, IT, test results, and other domains can all be tailored through profiles.
--Format-agnostic: the same framework core works across text, tabular, and mixed document formats.
+- Domain-agnostic: finance, legal, insurance, IT, test results, and other domains can all be tailored through profiles.
+- Format-agnostic: the same framework core works across text, tabular, and mixed document formats.
+
 **RAG:**
--Retrieval-Augmented Generation remains the operational pattern.
--Answers are expected to stay anchored to retrieved evidence and provenance.
+- Retrieval-Augmented Generation remains the operational pattern.
+- Answers are expected to stay anchored to retrieved evidence and provenance.
 
 The name also reflects scar tissue from prior naive approaches: hard-earned lessons turned into explicit framework design principles.
 
@@ -435,3 +437,178 @@ python main.py --data data --profile finance --confidence-strategy boost --query
 
 
 ## Freshness and Lifecycle Tracking
+Every ingested document is tagged with **ISO 8601 timestamps** for lifecycle management:
+```
+ingestion_iso_ts: str   # When first ingested (e.g., "2026-05-18T10:30:45.123Z")
+last_upsert_iso_ts: str   # When last updated/re-ingested
+deletion_mark_iso_ts: str|None   # When marked for deletion (none if active)
+encoding: str   # character encoding (default "utf-8")
+status: str|None   # Lifecycle status (domain-specific, optional); e.g., "active", "retired", "pending_review"
+```
+This enables:
+- **Freshness filtering**: exclude documents older than a threshold (e.g., financial data older than 90 days)
+- **Audit trails**: track when sources were ingested and last updated
+- **soft deletes**: mark documents as deleted without removeing chunks; hard-delete on batch cleanup
+- **duplicate detection**: re-ingest the same file, update `last_upsert_iso_ts`, skip if unchanged
+- **temporal decay**: confidence resolver can access timestamps for context-aware scoring
+- **status filtering**: filter retrieval results by document lifecycle state (e.g., exclude "retired" documents, only retrieve "active")
+
+Example future enhancement:
+```python
+# Filter results by freshness
+state_cutoff = datetime.utcnow () - timedelta=90)
+fresh_results = [r for r in results if r.metadata["ingestions_iso_ts"]>state_cutoff]
+
+#Filter results by status (e.g., excluded retired documents)
+active_results = [r for r in results if r.metadata.get("status") in (None, "active")]
+```
+Current baseline retrieval supports freshness lifecycle filters:
+```bash
+python main.py --data data --profile finance --enable-freshness-filter --freshness-max-age-days 90 --allowed-status acitve --query "show latest finance report table"
+```
+Freshness behavior in baseline:
+- Uses `last_upsert_iso_ts`, first, then `ingestion_iso_ts` as fallback.
+- Items older than threshold are excluded when freshness is enabled
+- If the timestamp is missing/invalid, the item is retained by default (implementers can customize stricter behavior)
+- Status filtering is optional; use `--allowed-status` to constrain results.
+
+### Governance, Freshness, and Lifecycle Controls
+Insert Mermaid Diagram
+
+Re-ingestion lifecycle baseline:
+- `source_unit_id` is generated from stable source-unit identity (`source_path + source_type + source_unit + source_unit_index + table_id`).
+- If `--reingestion-state-path` is provided, ingestion persists the lifecycle state and fingerprint per `source_unit_id`.
+- When content changes for an existing `source_unit_id`, `lifecycle_event` is set to `upserted`, `ingestion_iso_ts` is retained, and `last_upsert_iso_ts` is refreshed.
+- With `--skip-unchanged-on-reingest`, unchanged units are skipped (recommended only when used with a persistent downstream index/store).
+Soft-delete lifecycle baseline:
+- soft-deleted units are marked in the lifecycle with `deletion_mark_iso_ts`.
+- Reloaded ingestion skips soft-deleted units by default
+- Retrieval also excludes soft-deleted chunks by default if they are present in an index.
+- cleanup/hard-delete tooling is intentionally deferred to a later step.
+Hard cleanup utility:
+```bash
+python scripts/purge_soft_deledted.py --state-path.rag_state/reingestion.json
+```
+This removes soft-deleted entries from the persisted lifecycle state. Use it only when you no longer need soft-delete restore/audit history for those entries.
+
+Lifecycle audit report:
+```bash
+python scripts/report_lifecycle.py --state-path.rag_state/reingestion.json
+```
+This prints per-document lifecycle timelines from persisted audit events, including ingest, upsert, soft-delete, and skip events when present.
+
+Starter profile examples (for implementers to adapt):
+- `finance`
+- `insurance`
+- `legal`
+- `corporate`
+- `it`
+
+Note: `doc_type_taxonomy` in starter profiles is intentionally left as a placeholder (`{}`) so implementers and domain experts can define their own taxonomy based on actual corpus semantics.
+
+Suggest (non-authoritative) taxonomy templates are provided in [config/taxonomy_examples.json]
+- `policy_compliance_example`
+- `operations_runbook_example`
+- `knowledge_support_example`
+
+Use these as drafting aids only. Final taxonomy design, keyword selection, and validation should be owned by domain SMEs.
+
+Profiles are loaded from `config/profiles/{profile}.json` and overlaid on top of `config/synonyms.json`.
+This framework is intended to be adapted to one chosen domain per implementation.
+
+Confidence overlays are loaded from `config/profiles/{profile}_confidence.json` when confidence is enabled.
+Starter overlays are provided for: `corporate`, `finance`, `insurance`, `legal`, `it`.
+
+Profile config files can include a `framework_defaults` section for domain-tuned retrieval/freshness/confidence presets.
+These are intentionally starting guidance values; production teams should tune and codify them for their chosen domain.
+When `--profile` is provided, framework defaults are auto-applied unless overridden by explicit CLI arguments.
+
+Example:
+```bash
+python main.py --data data --profile corporate --query "show the governance status tabe"
+```
+
+Test-results scaffold (wide/sparse XLSX):
+- Starter profile: `config/profiles/test_results.json`
+- Confidence overlay: `config/profiles/test_results_confidence.json`
+- Ontology template: `config/test_results_ontology.template.json`
+
+Example:
+```bash
+python main.py --data data --profile test_results --query "which tests failed in latest build for suite checkout"
+```
+
+
+
+## Repo Map (with Notes)
+- `src/rag`
+  - Core Framework primitives.
+  - `ingest.py`: document loading + normalization across supported source tpe
+  - `chunking.py`: hybrid narrative/tabular chunking and overlap logic
+  - `vector_store.py`: retrieval store implementations (local + X-backed paths)
+  - `retriever.py`: query expansion, weighting, rerank strategy, lifecycle/freshness filtering
+  - `generator.py`: extractive/mock/live generation abstraction + citation block shaping
+  - `confidence_resolver.py`: confidence tiering logic from extraction metadata and overlays
+  - `pipeline.py`: composition layer that wires ingest ->chunk -> retrieve -> generate
+- `config/`
+  - Framework defaults and implementation overlays.
+  - `synonyms.json`: base thesaurus/quert intent vocabulary
+  - `confidence_base.json`: shared extraction-tier confidence defaults
+  - `profiles/*.json`: profile overlays for retrieval/taxonomy defaults
+  - `profiles/*_confidence.json`: profile-specific confidence overlays
+- `frontend/`
+  - Reference React UI for exercising API/evidence contracts
+  - `src/components/`: answer/citation drawer components
+  - `src/api/chatClient.js`: response normalization for structured and legacy payloads
+- `api_server.py`
+  - FastAPI runtime entry for `/api/chat` and `/api/health` plus state asset serving
+  - Applies dense-evidence citation rules (dedupe + low-signal collapse) for reference UX
+- `main.py`
+  - CLI entry point for framework smoke tests and configuration experimentation
+- `scripts/`
+  - Operational utilities: startup orchestration, depude analysis, lifecycle reports, eval rest
+  - `run_eval.py`: offline metric runner for implementation validation
+- `eval/`
+  - Reference datasets and reports generated during eval runs
+- `tests/`
+  - Framework regression tests for chunking, retrieval, provenance, and evaluation behavior
+- `docs/`
+  - Supporting design/blueprint notes (for example, frontend principles and evaluation blueprint)
+ 
+
+
+## CLI Smoke Test (Optional)
+1. Create and activate a Python virtual environment.
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+3. Run a query:
+```bash
+python main.py --query "What does RAG mean?"
+```
+By default, this ingests everything under `data/` with supported extensions.
+
+
+
+## Testing
+Run the test suite with:
+```bash
+python -m pytest tests
+```
+
+
+## Adapting for Implementations
+When implementing this framework for a specific domain, **remove auxiliary domain profiles and metadata**.
+- If deploying for **finance only**: delete `config/profiles/insurance_confidence.json`, `config/profiles/legal.json`, etc., and keep only `config/profiles/finance_confidence.json` and `config/profiles/finance.json`.
+- **Similarity for confidence configs**: remove unused domain-specific rules from `config/confidence_base.json` if they don't apply to your use case.
+- **Code**: This framework scaffolds universal extraction metadata and confidence assessment. If your domain has specialized extraction needs (e.g., domain-specific OCR, parsing, or entity extraction), add domain-specific extractor functions to `src/rag/ingest.py` rather than making them generic.
+
+Rationale: keeping unused domain profiles in the codebase adds noise, complexity, and maintenance burden. The framework is designed for **pragmatic reconfiguration, not kitchen-sink generality**.
+
+
+## Implementation Extension Ideas
+- Build or replace the reference UI while preserving the citation/evidence response contract.
+- Add domain-specific validation datasets and benchmark runners in implementation-specific branches.
+- Integrate a chosen live generation provider through the `generation_mode=live` adapter hook.
+- Add deployment-specific observability, auth, and policy layers around the framework core.
