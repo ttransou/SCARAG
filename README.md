@@ -392,5 +392,46 @@ extraction_ts: float # Unix timestamp when chunk was extracted
 
 Confidence is assessed dynamically via `ConfidenceResolver` using domain-specific rules. Base extraction tiers apply universally:
 
-<table>Extraction Method | Base Tier | Reason |
-xlsx_native_row | high | Native |</table>
+| Extraction Method    | Base Tier | Reason                                        |
+| -------------------- | --------- | --------------------------------------------- |
+| xlsx_native_row      | high      | Native XLSX format, no inference              |
+| docx_native_table    | high      | Native DOCX table, no inference               |
+| pdf_text_layer       | high      | Native PDF text layer, no inference           |
+| pptx_native_slide    | high      | Native PPTX slide, no inference               |
+| text_heuristic_table | medium    | Detected by pattern matching, minor inference |
+| text_line            | medium    | Parsed as-is from text format                 |
+
+### Domain Reconfiguration Required
+Confidence assessment is **designed to be reconfigured per domain** for best results. Each domain my apply:
+- **temporal decay**: Financial data from 1 year ago does not match current data; insurance policies have effective date windows.
+- **intent-based boosting**: tabular queries demand higher confidence thresholds; narrative queries more forgiving.
+- **conflict resolution**: Legal contraditions between sources; insurance policy supressions.
+
+### Configuration
+**Base config**: `config/confidence_base.json` (framework defaults, all tiers = "medium" or "high")
+**Domain overlays**: `config/profiles/{domain}_confidence.json`
+
+Example domain override:
+```json
+{
+  "temporal_deay":{
+  "enabled":true,
+  "half_life)days":180,
+  "source_pattersn":["balance_sheet","annual_report"]
+},
+"intent_boost":{
+  "tabular_query": 1.2,
+  "narrative_query":0.95
+  }
+}
+```
+
+
+### Usage (future CLI)
+```bash
+python main.py --data data --profile finance --confidence-strategy boost --query "revenue by quater"
+```
+
+
+
+## Freshness and Lifecycle Tracking
