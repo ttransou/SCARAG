@@ -1,4 +1,5 @@
 {
+  "schema_note": "Sample profile structure. Adapt this file to your domain and deployment needs.",
   "name": "default",
   "boilerplate_policy": {
     "allow_patterns": [],

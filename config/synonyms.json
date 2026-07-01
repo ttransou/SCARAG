@@ -1,4 +1,5 @@
 {
+  "schema_note": "Sample thesaurus structure for local retrieval and query intent handling. Adapt the keys and values to your domain.",
   "terms": {
     "table": ["tabular", "matrix", "spreadsheet"],
     "score": ["rating", "metric", "value"]

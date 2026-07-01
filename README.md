@@ -52,9 +52,24 @@ In short: this framework is a reusable RAG foundation that helps teams move fast
 
 
 ## Architecture at a Glance
-Insert Mermaid diagram
 
+The reference stack follows one end-to-end path: ingest source files, turn them into retrievable units, retrieve relevant chunks, and return grounded answers with provenance.
 
+```mermaid
+graph LR
+    subgraph Startup_Index_Build [Startup / Index Build]
+        A[Ingest source files] --> B[Normalize content and metadata]
+        B --> C[Chunk into retrievable units]
+        C --> D[Build local retrieval index]
+    end
+
+    E[User in React UI] --> F[FastAPI / Uvicorn API]
+    F --> G[Retrieve candidate chunks]
+    G --> H[Metadata-aware weighting and reranking]
+    H --> I[Generate grounded answer]
+    I --> F
+    F --> J[Return answer and provenance to UI]
+```
 
 ## Reality Snapshot
 - Included reference UI target: desktop browser
@@ -147,8 +162,43 @@ Example Azure deployment pattern (implementation-specific)
 
 
 ## Ingestion and Chunking Flow
-Insert Mermaid Diagram
 
+Each source file is transformed into structured, retrievable units with metadata that later shapes retrieval, grounding, and lifecycle controls.
+
+```mermaid
+flowchart TD
+    SourceFiles[Source files] --> ExtensionExtractor{Extractor selection}
+
+    ExtensionExtractor --> TXT[TXT]
+    ExtensionExtractor --> PDF[PDF text layer]
+    ExtensionExtractor --> DOCX[DOCX]
+    ExtensionExtractor --> PPTX[PPTX]
+    ExtensionExtractor --> XLSX[XLSX or XLS]
+    ExtensionExtractor --> Other[MD JSON CSV HTML MHTML]
+
+    TXT --> ExtractUnits[Extract source units]
+    PDF --> ExtractUnits
+    DOCX --> ExtractUnits
+    PPTX --> ExtractUnits
+    XLSX --> ExtractUnits
+    Other --> ExtractUnits
+
+    ExtractUnits --> TableDetection{Table-like detection<br/>source_is_tabular or<br/>heuristic}
+
+    TableDetection -->|Yes| TabularChunking[Tabular chunking<br/>row windows<br/>repeated headers<br/>row overlap]
+    TableDetection -->|No| ProseChunking[Prose chunking<br/>paragraph and sentence<br/>boundaries<br/>optional lexical cohesion<br/>word overlap]
+
+    TabularChunking --> ChunkRecords[Chunk records with<br/>metadata]
+    ProseChunking --> ChunkRecords
+
+    ChunkRecords --> ContentFingerprint[content_fingerprint]
+    ChunkRecords --> DocType[doc_type]
+    ChunkRecords --> DomainArea[domain_area]
+    ChunkRecords --> ExtractionMethod[extraction_method]
+    ChunkRecords --> ExtractionTS[extraction_ts]
+    ChunkRecords --> SourceUnitID[source_unit_id]
+    ChunkRecords --> LifecycleTS[ingestion_iso_ts and<br/>last_upsert_iso_ts]
+```
 
 ## Chunking Strategy (hybrid)
 - Structural signals prefer paragraph and sentence boundaries.
@@ -346,8 +396,44 @@ python scripts/reset_eval_workspace.py --confirm --delete-datasets --test-docs-p
 
 
 ## Retrieval and Answer-Grounding Flow
-Insert Mermaid diagram
 
+Once chunks are available, the system filters, reranks, and grounds them so answers stay relevant, evidence-based, and appropriately constrained.
+
+```mermaid
+flowchart TD
+    Start[User query] --> OptQuery[Optional query rewrite mode: none or keywords]
+
+    OptQuery --> Thesaurus[Optional thesaurus expansion]
+    Thesaurus --> Retrieve[Retrieve candidate chunks from index]
+    Retrieve --> Lifecycle[Lifecycle and freshness status filter]
+    Lifecycle --> Metadata[Metadata weighting: doc_type, boilerplate, table-aware boost]
+    Metadata --> MinThreshold[Min retrieval score threshold]
+    MinThreshold --> Rerank[Rerank candidates: overlap or RRF hybrid]
+    Rerank --> FinalResults{Any final results?}
+
+    FinalResults -- No --> NoContext[Return no-context response]
+    FinalResults -- Yes --> TabularIntent{Tabular Intent?}
+
+    TabularIntent -- No --> StandardMode[Standard answer mode: extractive, mock, or live]
+    TabularIntent -- Yes --> StrictMode[Strict row-grounded tabular mode]
+
+    StrictMode --> TabularEvidence{Tabular evidence retrieved?}
+    TabularEvidence -- No --> Abstain1[Abstain: no tabular evidence]
+    TabularEvidence -- Yes --> MatchedRow{Matched row evidence?}
+
+    MatchedRow -- Yes --> ReturnGrounded[Return grounded answer from matched rows]
+    MatchedRow -- No --> SchemaStyle{Schema-style tabular query?}
+
+    SchemaStyle -- Yes --> ReturnHeader[Return header plus sample row fallback]
+    SchemaStyle -- No --> Abstain2[Abstain: no row-level match]
+
+    StandardMode --> Final[Return answer with citations]
+    ReturnGrounded --> Final
+    ReturnHeader --> Final
+    Abstain1 --> Final
+    Abstain2 --> Final
+    NoContext --> Final
+```
 
 ## Retrieval Best Practices
 These are the main tuning parameters to consider when adjusting retrieval behavior for a specific implementation.
@@ -473,7 +559,47 @@ Freshness behavior in baseline:
 - Status filtering is optional; use `--allowed-status` to constrain results.
 
 ### Governance, Freshness, and Lifecycle Controls
-Insert Mermaid Diagram
+
+Lifecycle state travels with each source unit so retrieval can remain current, auditable, and resilient to re-ingestion and soft-deletion events.
+
+```mermaid
+flowchart TD
+    Start[Extracted source unit] --> Compute[Compute source_unit_id and content_fingerprint]
+    Compute --> Persist[Persist lifecycle state when re-ingestion state path is enabled]
+
+    Persist --> Decision{Re-ingestion event for same source_unit_id}
+
+    Decision -->|Unchanged| SkipUnchanged{skip_unchanged_on_reingest}
+    SkipUnchanged -->|Yes| SkipLog[Skip unchanged and log audit event]
+    SkipUnchanged -->|No| KeepExisting[Keep existing timestamps and continue]
+
+    Decision -->|Changed| SetEvent[Set lifecycle_event to upserted]
+    SetEvent --> RetainIngestion[Retain ingestion_iso_ts]
+    SetEvent --> RefreshUpsert[Refresh last_upsert_iso_ts]
+
+    Decision -.-> SoftDelete[Soft-delete operation sets deletion_mark_iso_ts]
+    SoftDelete --> Excludes[Later retrieval excludes soft-deleted]
+
+    Start --> Assign[Assign lifecycle metadata to the source unit]
+    Assign --> IngestionTS[ingestion_iso_ts]
+    Assign --> LastUpsert[last_upsert_iso_ts]
+    Assign --> DeletionMark[deletion_mark_iso_ts default None]
+    Assign --> Status[status]
+
+    IngestionTS --> Controls[Retrieval lifecycle controls]
+    LastUpsert --> Controls
+    DeletionMark --> Controls
+    Status --> Controls
+    KeepExisting --> Controls
+    RetainIngestion --> Controls
+    RefreshUpsert --> Controls
+    Excludes --> Controls
+
+    Controls --> ExcludeSoft[Exclude soft-deleted content]
+    Controls --> AllowedStatus[Allowed status filtering optional]
+    Controls --> Freshness[Freshness filtering optional]
+    Freshness --> UseTS[Use last_upsert_iso_ts with ingestion_iso_ts fallback]
+```
 
 Re-ingestion lifecycle baseline:
 - `source_unit_id` is generated from stable source-unit identity (`source_path + source_type + source_unit + source_unit_index + table_id`).
