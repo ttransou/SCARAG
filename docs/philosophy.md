@@ -26,8 +26,6 @@ SCARAG therefore treats retrieval quality as a combination of lexical relevance,
 
 ## **Agnostic Does Not Mean Generic**
 
-## **Agnostic Does Not Mean Generic**
-
 SCARAG is domain-agnostic, but it is **not** domain-indifferent.
 
 The framework can be adapted for evidence-sensitive corpora across many fields: finance, legal, insurance, IT, corporate policy, support knowledge, test results, humanities research, archival collections, museum documentation, art-historical records, literary corpora, oral histories, and cultural heritage materials.
