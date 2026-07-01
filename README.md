@@ -3,7 +3,7 @@ Schema-Centric Agnostic RAG (Retrieval-Augmented Generation)
 
 **Metadata-first RAG for any domain, and supported format**
 
-### T. Transou - June 2026
+### T. Transou - June 2026 - 🚧 Active Development 🚧
 
 
 
@@ -15,7 +15,7 @@ Most RAG systems do not fail only because the model hallucinates. They fail beca
 
 A document-grounded system needs more than chunking, embeddings, and generation. It needs source identity, extraction metadata, lifecycle state, freshness policy, domain vocabulary, document type, tabular structure, confidence rules, and visible provenance.
 
-SCARAG is built from that premise.
+SCARAG is built on that premise.
 
 The framework treats retrieval as an evidence-governance problem, not only a similarity-search problem.
 
@@ -35,15 +35,15 @@ First things first:
   
   SCARAG’s evaluation philosophy is layered.
 
-  The current offline harness provides deterministic checks for retrieval quality, provenance completeness, lifecycle compliance, freshness compliance, tabular grounding, and abstention behavior. These metrics are useful during early framework iteration because they expose failure modes before a live LLM provider is required.
+The current offline harness provides deterministic checks for retrieval quality, provenance completeness, lifecycle compliance, freshness compliance, tabular grounding, and abstention behavior. These metrics are useful during early framework iteration because they expose failure modes before a live LLM provider is required.
 
-  For mature implementations, SCARAG can be extended with RAGAS-style or human-reviewed evaluation for faithfulness, answer relevance, context precision, and context recall. These evaluations should not replace framework-level checks. They should complement them.
+For mature implementations, SCARAG can be extended with RAGAS-style or human-reviewed evaluation for faithfulness, answer relevance, context precision, and context recall. These evaluations should not replace framework-level checks. They should complement them.
 
-  The goal is not a single score. The goal is diagnostic visibility: knowing whether failure came from ingestion, chunking, retrieval, reranking, lifecycle filtering, tabular grounding, generation, or evidence presentation.
+The goal is not a single score. The goal is diagnostic visibility: knowing whether failure came from ingestion, chunking, retrieval, reranking, lifecycle filtering, tabular grounding, generation, or evidence presentation.
 
 ## What the Name Means
 
-  SCARAG = Schema-Centric Agnostic RAG
+ ### SCARAG = Schema-Centric Agnostic RAG
 
 **Schema-Centric:**
 - The framework prioritizes field semantics, provenance metadata, and lifecycle signals over naive document-only parsing.
