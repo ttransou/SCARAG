@@ -107,6 +107,13 @@ graph LR
   - repeated citation cards are deduped
   - low-signal citations are collapsed by default
   - collapsed evidence remains available on demand
+- Reference UI scaffolding now includes:
+  - a left navigation rail with a template FAQ view,
+  - a main conversation viewport that can switch to FAQ content,
+  - a thumbs-up/down feedback scaffold with a text entry for thumbs-down responses,
+  - a theme toggle and evidence drawer for transparency-oriented review
+- The FAQ experience is intentionally template-based for per-implementation customization.
+- Feedback capture and storage are not yet implemented; the UI currently provides a placeholder entry surface for future wiring.
 - Generation modes available:
   - `extractive` (default)
   - `mock` (deterministic offline model)
@@ -160,6 +167,11 @@ Current response contract includes:
 Frontend principles charter:
 ```bash
 docs/frontend-principles.md
+```
+Reference frontend scaffold:
+```bash
+frontend/src/App.jsx
+frontend/src/styles.css
 ```
 Human-owned NLP tailoring guide:
 ```bash
@@ -767,3 +779,21 @@ Rationale: keeping unused domain profiles in the codebase adds noise, complexity
 - Add domain-specific validation datasets and benchmark runners in implementation-specific branches.
 - Integrate a chosen live generation provider through the `generation_mode=live` adapter hook.
 - Add deployment-specific observability, auth, and policy layers around the framework core.
+
+
+
+
+## Bibliography and Attribution
+The SCARAG framework draws on established work in retrieval-augmented generation, grounding, citation-aware generation, and evaluation. The references below are intended as a living bibliography for the project and should be updated as the framework and its documentation evolve.
+
+- Lewis, Patrick, et al. "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks." arXiv preprint arXiv:2005.11401, 2020. Foundational treatment of RAG that motivates retrieval-grounded generation and the separation between retrieval quality and generation quality.
+- Asai, Akari, et al. "Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection." arXiv preprint arXiv:2310.11511, 2023. Relevant to abstention, critique, and self-evaluation patterns that align with SCARAG’s emphasis on confidence-aware grounding.
+- Gao, Yunfan, et al. "Retrieval-Augmented Generation for Large Language Models: A Survey." arXiv preprint arXiv:2312.10997, 2023. Useful survey context for RAG design patterns, retrieval strategies, and the broader system landscape.
+- Es, S., James, J., et al. "RAGAS: Automated Evaluation of Retrieval Augmented Generation." arXiv preprint arXiv:2309.15217, 2023. Core reference for evaluation dimensions such as faithfulness, relevance, context precision, and context recall.
+- Bohnet, Bernd, et al. "Attributed Question Answering: A New Benchmark for Grounded, Verifiable QA." arXiv preprint arXiv:2206.11710, 2022. Relevant to attribution and answer verifiability, especially for evidence-aware UI and citation presentation.
+- Yue, Xiang, et al. "Automatic Evaluation and Improvement of Attribution in LLMs." arXiv preprint arXiv:2311.15408, 2023. Useful for thinking about citation quality, provenance support, and grounding transparency in production systems.
+- Nakano, Reiichiro, et al. "WebGPT: Browser-assisted question-answering with human feedback." arXiv preprint arXiv:2112.09332, 2021. Important reference for human feedback loops and user-centered answer refinement.
+- Ouyang, Long, et al. "Training language models to follow instructions with human feedback." arXiv preprint arXiv:2203.02155, 2022. Relevant background for feedback-driven improvement and alignment-oriented tuning.
+
+### Attribution note
+Where SCARAG makes claims about robustness, abstention, provenance, confidence, or evaluation design, the framework should prefer cited literature and implementation guidance over unsupported assertions. This bibliography is a starting point; future revisions should extend it with domain-specific references where relevant.
