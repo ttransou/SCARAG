@@ -7,10 +7,39 @@ Schema-Centric Agnostic RAG (Retrieval-Augmented Generation)
 
 
 
-SCARAG is a configurable framework for document-grounded retrieval and answer synthesis.
+## One-Sentence Claim
+SCARAG is a metadata-first RAG framework for building document-grounded systems where provenance, lifecycle, confidence, and domain semantics matter.
 
-The included runtime is a reference stack: a single FastAPI/Uvicorn process that serves API endpoints and built React assets.
+## Core Premise
+Most RAG systems do not fail only because the model hallucinates. They fail because the retrieval system does not know enough about the evidence it is using.
 
+A document-grounded system needs more than chunking, embeddings, and generation. It needs source identity, extraction metadata, lifecycle state, freshness policy, domain vocabulary, document type, tabular structure, confidence rules, and visible provenance.
+
+SCARAG is built from that premise.
+
+The framework treats retrieval as an evidence-governance problem, not only a similarity-search problem.
+
+## Why SCARAG Exists
+- Naive RAG treats documents as text blobs.
+- Real implementation corpora are governed artifacts.
+- Reliable answers require metadata-aware retrieval, lifecycle controls, confidence assessment, and evidence visibility.
+
+## Design and Evaluation Philosophy
+First things first:
+- Schema before generation
+- Provenance before fluency
+- Domain tailoring before generic automation
+- Abstention before unsupported synthesis
+
+**Evaluation as diagnosis, not decoration**
+  
+  SCARAG’s evaluation philosophy is layered.
+
+  The current offline harness provides deterministic checks for retrieval quality, provenance completeness, lifecycle compliance, freshness compliance, tabular grounding, and abstention behavior. These metrics are useful during early framework iteration because they expose failure modes before a live LLM provider is required.
+
+  For mature implementations, SCARAG can be extended with RAGAS-style or human-reviewed evaluation for faithfulness, answer relevance, context precision, and context recall. These evaluations should not replace framework-level checks. They should complement them.
+
+  The goal is not a single score. The goal is diagnostic visibility: knowing whether failure came from ingestion, chunking, retrieval, reranking, lifecycle filtering, tabular grounding, generation, or evidence presentation.
 
 ## What the Name Means
 
@@ -28,7 +57,7 @@ The included runtime is a reference stack: a single FastAPI/Uvicorn process that
 - Retrieval-Augmented Generation remains the operational pattern.
 - Answers are expected to stay anchored to retrieved evidence and provenance.
 
-The name also reflects scar tissue from prior naive approaches: hard-earned lessons turned into explicit framework design principles.
+*The name also reflects scar tissue from prior naive approaches: hard-earned lessons turned into explicit framework design principles.*
 
 
 
@@ -461,7 +490,7 @@ Domain adaptation requires deliberate human NLP decisions for vocabulary, ontolo
 Use `docs/nlp-tailoring-guide.md` as the implementation checklist for where tailoring is required.
 Use `docs/domain-kickoff-worksheet.md` for a 30-minute structured kickoff session with SMEs.
 
-<excluding Azure, refer to the printout>
+
 
 
 
