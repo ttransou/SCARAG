@@ -1,7 +1,7 @@
 # SCARAG
 Schema-Centric Agnostic RAG (Retrieval-Augmented Generation)
 
-## Metadata-first RAG for any domain, and supported format
+**Metadata-first RAG for any domain, and supported format**
 
 ### T. Transou - June 2026
 
