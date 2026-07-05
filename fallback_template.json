@@ -1,0 +1,65 @@
+[
+  {
+    "id": "clarify_timeframe",
+    "question_examples": [
+      "when did that happen",
+      "what time frame are you referring to",
+      "which date do you mean",
+      "what period",
+      "what year was that"
+    ],
+    "response": "Can you tell me which time period you mean — e.g., last week, last month, or a specific date range?",
+    "type": "clarify",
+    "confidence_threshold": 0.6,
+    "notes": "Ask for a timeframe before attempting retrieval-driven answers."
+  },
+  {
+    "id": "abstain_unknown",
+    "question_examples": [
+      "who invented xyz",
+      "what is the cause of abc",
+      "tell me the definitive answer about",
+      "who is the author of this"
+    ],
+    "response": "I don't have high-confidence information to answer that right now. Would you like me to try a broader search, show related resources, or connect you to someone who can help?",
+    "type": "abstain",
+    "confidence_threshold": 0.4,
+    "notes": "Used when retrieval or model confidence is below the specified threshold. Prefer providing next actions."
+  },
+  {
+    "id": "suggest_docs",
+    "question_examples": [
+      "how do i run tests",
+      "how do i start the project locally",
+      "how to run the project",
+      "how to set up locally"
+    ],
+    "response": "You can find setup and run instructions in the README; would you like a quick summary of the common commands?",
+    "type": "resource",
+    "notes": "Map common operational questions to docs/resources. Projects should override with project-specific content."
+  },
+  {
+    "id": "escalate_contact",
+    "question_examples": [
+      "i found a security issue",
+      "report a bug",
+      "how do i contact maintainers",
+      "who maintains this project"
+    ],
+    "response": "Thanks for reporting this — please file an issue at the repository and tag it as 'security' or 'bug', or contact the maintainers via the project's support channel. Would you like me to open a new issue draft for you?",
+    "type": "escalate",
+    "notes": "High-priority or safety-related fallbacks that suggest explicit human escalation."
+  },
+  {
+    "id": "generic_fallback",
+    "question_examples": [
+      "",
+      "i don't know",
+      "can you help",
+      "i need information"
+    ],
+    "response": "I don't have a confident answer right now. I can try a broader search, show related resources, or you can rephrase your question — which would you prefer?",
+    "type": "suggest",
+    "notes": "A safe, generic fallback when no better match is found."
+  }
+]
