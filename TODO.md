@@ -24,6 +24,23 @@
 - [ ] Integrate a live generation provider through the generation-mode adapter hook
 - [ ] Add deployment-specific observability, authentication, and policy layers around the framework core
 
+## Fallback template for chat interface
+- [ ] Add scaffold file `fallback_template.json` with common fallback question/answer pairs for the chat interface. Include multiple fallback types: clarification prompts, graceful "I don't know" answers, action suggestions, and redirect/resource suggestions.
+- [ ] Wire `fallback_template.json` into the runtime fallback handler (e.g., a `scripts/fallbacks.py` or `scripts/use_fallbacks.js`) so the chat UI can load and serve fallback responses when retrieval fails, confidence is low, or user intent is unclear.
+- [ ] Add a small integration test or manual test checklist demonstrating the fallback selection logic and override priorities (explicit FAQ mapping > intent-based match > generic fallback).
+- [ ] Allow deployment-specific overrides (e.g., env var or config path) so teams can customize fallback content without editing the repo scaffold.
+
+### Example fallback_template.json scaffold (see `fallback_template.json` in repo root)
+
+- The scaffold file should be a JSON array of objects. Suggested fields:
+  - `id` (string): stable identifier for the fallback entry
+  - `question_examples` (array): example user phrasings that should map to this fallback
+  - `response` (string): the text to return to the user
+  - `type` (string): one of `clarify`, `abstain`, `suggest`, `resource`, `escalate`
+  - `confidence_threshold` (number, optional): a threshold below which this fallback will trigger
+  - `notes` (string, optional): authoring notes for maintainers
+
+
 ## External citations and attribution
 - [ ] Maintain a running bibliography of relevant RAG, grounding, citation, and evaluation papers and tools
 - [ ] Record the core rationale for each cited work in the context of SCARAG’s design goals
