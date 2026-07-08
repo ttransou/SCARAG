@@ -122,7 +122,27 @@ graph LR
 
 
 ## Run Reference Stack (React + Uvicorn)
-The React frontend under `frontend/` is a reference interface for exercising framework APIs and evidence contracts.
+The React frontend under `frontend/` is the reference UI implementers should run locally when they want to inspect the framework shell.
+
+## Local UI Quick Start
+
+Use this first if you just want to see the reference UI:
+
+```bash
+bash ./start_everything.sh
+```
+
+That starts the API on `8000` and the UI on `3000`.
+
+If you want to run the pieces separately, use the detailed steps below.
+
+Fastest path for a local UI preview:
+
+1. From the repo root, start both services with `bash ./start_everything.sh`.
+2. Open `http://127.0.0.1:3000` for the UI.
+3. Keep `http://127.0.0.1:8000/api/health` handy if you want to confirm the backend is up.
+
+If you prefer separate terminals, use the explicit commands below.
 
 Prerequisites:
 - Python virtual environment at `.venv` with project dependencies installed
@@ -135,13 +155,22 @@ Build frontend once (or after UI changes):
   npm install
   npm run build
 ```
-Run unified server from repo root:
+Run the API server from repo root:
   ```bash
   .\.venv\Scripts\python -m uvicorn api_server:app --reload --host 127.0.0.1 --port 8000
 ```
-One-command startup script:
+Run the React UI in a separate terminal:
 ```bash
-powershell -ExecutionPolicy Bypass -File .\scripts\start_everything.ps1
+cd frontend
+npm run dev
+```
+One-command startup script at the repo root:
+```bash
+bash ./start_everything.sh
+```
+Linux/macOS startup script:
+```bash
+bash ./scripts/start_everything.sh
 ```
 Common options:
 ```bash
@@ -151,9 +180,54 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start_everything.ps1 -Generat
 ```
 Endpoints:
 ```bash
-http://127.0.0.1:8000 for React UI
+http://127.0.0.1:3000 for React UI
 http://127.0.0.1:8000/api/health for API health
 ```
+Note: `http://127.0.0.1:8000` is the API server, not the browser UI.
+
+## Contributor Guide
+
+This repository is arranged so contributors can update the framework core, the reference API, and the reference UI without hunting for the owning surface.
+
+### What to edit
+
+- `api_server.py`: chat and health endpoints, response envelope, citation shaping
+- `scarag/`: ingestion, retrieval, generation, and config behavior
+- `frontend/src/App.jsx`: reference UI shell, state handling, and evidence drawer behavior
+- `frontend/src/styles.css`: visual polish, layout, and shell spacing
+- `docs/`: contract docs, evaluation notes, and implementation guidance
+- `scripts/`: startup, evaluation, and workspace reset helpers
+
+### Typical local workflow
+
+1. Run the root launcher with `bash ./start_everything.sh` to inspect the UI.
+2. Change the smallest surface that owns the behavior.
+3. Rebuild the frontend with `cd frontend && npm run build` when UI code changes.
+4. Run `python -m pytest tests/test_api.py` after API or contract changes.
+5. Update the relevant docs in the same change set when you alter the UI contract, state model, or run path.
+
+### When to update docs
+
+Update the README, contract docs, and TODO checklist when you change any of the following:
+
+- response fields returned by `POST /api/chat`
+- evidence drawer behavior or citation shaping
+- frontend state atoms or view switching
+- startup commands, ports, or environment assumptions
+- baseline versus implementation-specific UI behavior
+
+### Repo conventions
+
+- Keep the reference stack framework-first and implementation-neutral.
+- Prefer small, reviewable changes over broad rewrites.
+- Keep visible UI changes paired with the docs that explain how to run and verify them.
+- Treat the reference UI as a baseline shell that implementers can tailor later.
+
+Maintainer checklist:
+```bash
+docs/maintainer-checklist.md
+```
+
 Reference API endpoint:
 ```bash
 POST /api/chat with body { "query": "..."}
@@ -163,6 +237,14 @@ Current response contract includes:
 - citations (visible cards)
 - collapsed_citations (hidden-by-default cards)
 - answer (full backend answer text)
+```
+Reference UI contract:
+```bash
+docs/reference-ui-contract.md
+```
+Reference frontend state model:
+```bash
+docs/frontend-state-model.md
 ```
 Frontend principles charter:
 ```bash
