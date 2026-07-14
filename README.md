@@ -26,6 +26,9 @@ This README serves four roles at once:
 
 Some sections describe implemented functionality in this repository. Other sections are explicit roadmap targets that define what still needs to be built. Those targets remain here by design.
 
+Status synchronization rule:
+- when a roadmap target changes to partial or implemented, update this README and docs/implementation-status.md in the same change set.
+
 ## Core Premise
 Most RAG systems fail long before generation quality becomes the main issue. They fail because retrieval lacks evidence governance: source identity, metadata quality, freshness, lifecycle state, and domain semantics.
 
@@ -85,25 +88,25 @@ graph LR
 ## Capability Matrix
 | Capability | Current public status | Current implementation surface | Roadmap alignment / next step |
 |---|---|---|---|
-| multi-format ingestion | Partial | scarag/ingestion/loader.py handles txt, md, json, csv, html/htm, mhtml/mht, pdf, docx, pptx, xlsx/xls | Harden parsers and add richer extraction metadata and error diagnostics |
+| multi-format ingestion | Implemented (baseline) | scarag/ingestion/loader.py handles txt, md, recursive-json flattening, csv, html/htm, nested multipart mhtml/mht, pdf, docx, pptx, xlsx/xls with extraction metadata | Expand parser diagnostics and domain-specific extraction policies |
 | document type inference | Implemented | scarag/pipeline.py infer_doc_type | Expand taxonomy and profile-driven typing |
 | prose chunking | Implemented | scarag/pipeline.py _chunk_prose | Add cohesion-aware splitting and policy-tuned chunking |
 | tabular chunking | Partial | scarag/pipeline.py _looks_tabular + _chunk_tabular row windows | Improve table detection and row/header fidelity across formats |
-| metadata propagation | Implemented (baseline) | canonical evidence fields include source, chunk_id, source_unit_id, extraction and lifecycle metadata, and confidence inputs | Extend with resolver-specific confidence debug fields as resolver matures |
-| provenance/citations | Partial | api_server.py citation envelope and frontend evidence drawer | Enforce richer provenance contract and source-resolvable linking |
+| metadata propagation | Implemented (baseline) | canonical evidence fields include source, chunk_id, source_unit_id, extraction and lifecycle metadata, confidence inputs, table metadata, and image markers where available | Extend with richer parser diagnostics and confidence debug traces |
+| provenance/citations | Implemented (baseline) | api_server.py citation envelope, provenance completeness validator, and frontend evidence drawer | Add citation quality checks (snippet adequacy, duplicate policy, source traceability depth) |
 | thesaurus/query expansion | Implemented | config/synonyms.json + scarag/pipeline.py expand_query_terms | Add profile overlays, governance for term drift, and diagnostics |
 | lexical retrieval | Implemented | scarag/pipeline.py retrieve_chunks token overlap + doc_type weighting | Tune weights and add calibration tooling |
-| vector or TF-IDF retrieval | Partial | TF-IDF backend implemented with cosine normalization; vector backend not implemented | Add vector backend and calibration path |
+| vector or TF-IDF retrieval | Implemented (baseline) / Partial | TF-IDF backend implemented with cosine normalization; vector backend not implemented | Add vector backend and calibration path |
 | hybrid reranking | Implemented (baseline) | lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interface | Expand diagnostics and semantic blending policies |
 | confidence resolver | Implemented (baseline) | resolver consumes extraction tier + lifecycle signal + retrieval strength + evidence coverage and emits high/low/abstain | Add profile/domain overlays, temporal decay, and richer debug traces |
 | lifecycle/freshness controls | Implemented (baseline) | persistent lifecycle state, freshness filtering, status filters, and diagnostics in retrieval | Add lifecycle audit reporting utilities |
 | soft delete/re-ingestion state | Implemented (baseline) | file-backed state store with source_unit_id, ingestion/upsert timestamps, status, and soft-delete marks | Add audit timeline tooling and skip-unchanged reporting |
-| tabular grounding | Partial | tabular intent detection plus abstention when no tabular evidence | Add matched-row grounding and stricter row-faithful answering |
+| tabular grounding | Implemented (baseline) | tabular intent detection, abstention when tabular evidence is absent, strict matched-row grounding and trace output | Define schema-style fallback policy and PDF-table guardrails for advanced cases |
 | generation modes | Partial | extractive, mock, live placeholder in scarag/generation/answerer.py | Add provider adapters and stronger grounding-aware generation contracts |
 | citation response contract | Implemented | docs/reference-ui-contract.md and api_server.py response fields | Expand contract tests and richer citation metadata |
 | reference API | Implemented | api_server.py /api/health and /api/chat | Add config endpoints and diagnostic surfaces |
 | reference UI | Partial | frontend/src/App.jsx and styles.css implement shell, drawer, feedback scaffold | Wire feedback persistence and expand evidence interactions |
-| offline evaluation | Partial | scripts/run_eval.py outputs JSON/Markdown reports | Add richer datasets, correction of metric naming, and deeper governance checks |
+| offline evaluation | Implemented (baseline) | scripts/run_eval.py outputs JSON/Markdown reports with retrieval/provenance/abstention/tabular/confidence expectation metrics | Add richer datasets, dataset sanity checks, and deeper governance checks |
 | domain profiles | Partial | profiles/default.json + RagConfig.from_profile | Add domain-specific profiles and confidence overlays |
 | deployment guidance | Partial | start scripts and README run path | Add deployment playbooks and cloud adapter references |
 
@@ -129,36 +132,51 @@ The README is intentionally philosophy-first and status-oriented. Detailed opera
 - Design and contract docs: docs/
 
 ## Framework Capabilities
-### Ingestion and Chunking - Status: Partial
+### Ingestion - Status: Implemented (baseline)
 Current implementation baseline:
 - Parses txt, md, json, csv, html/htm, mhtml/mht, pdf, docx, pptx, xlsx/xls.
+- Uses recursive JSON flattening for nested dict/list paths.
+- Adds DOCX/PPTX/XLSX/XLS table metadata (table_id, row_count, column_count, header_fields).
+- Adds nested multipart MHTML part handling with html/plain decode fallback.
+- Adds baseline PDF table extraction with text fallback.
+- Emits extraction_method and extraction_ts metadata and propagates image markers where non-text objects are detected.
+
+Roadmap targets:
+- parser-level diagnostics and richer extraction quality signaling,
+- stronger PDF table guardrails for high-assurance row grounding.
+
+### Chunking - Status: Partial
+Current implementation baseline:
 - Creates prose chunks with chunk size, overlap, and minimum word controls.
-- Detects table-like content heuristically and chunk by row windows.
+- Detects table-like content heuristically and chunks by row windows.
 - Suppresses duplicate full-document fingerprints during indexing.
 
 Roadmap targets:
-- richer extraction metadata (extraction method and extraction timestamp),
-- stronger table detection and table-structure preservation,
-- lifecycle-aware ingestion state and re-ingestion behavior.
+- preserve repeated headers explicitly in tabular metadata,
+- formalize overlap policy by chunk type,
+- preserve source-unit boundaries more strictly through chunk surfaces.
 
-### Schema-Conscious Retrieval and Metadata-First Scoring - Status: Partial
+### Schema-Conscious Retrieval and Metadata-First Scoring - Status: Implemented (baseline) / Partial
 Current implementation baseline:
 - Query expansion from config/synonyms.json.
 - Lexical overlap retrieval with doc_type-aware weighting.
+- TF-IDF backend with cosine normalization.
+- Hybrid lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interfaces.
 - top_k and minimum retrieval score controls.
 
-Important correction:
-- The current public framework baseline uses lexical overlap retrieval.
-- TF-IDF/vector retrieval and hybrid reranking remain roadmap targets.
+Roadmap targets:
+- vector backend behind adapter boundary,
+- richer retrieval diagnostics and calibration tooling.
 
-### Provenance and Evidence Presentation - Status: Partial
+### Provenance and Evidence Presentation - Status: Implemented (baseline)
 Current implementation baseline:
 - API returns message, citations_summary, citations, collapsed_citations, answer, confidence.
+- Provenance completeness validator is integrated and surfaced in diagnostics/evaluation.
 - Frontend renders answer-first with right-side evidence drawer.
 - Evidence cards are visible and low-signal cards can be collapsed.
 
 Roadmap targets:
-- stronger provenance completeness rules,
+- citation quality policy checks,
 - source-resolvable links and richer citation metadata validation.
 
 ### Lifecycle and Freshness - Status: Implemented (baseline)
@@ -170,7 +188,7 @@ Current implementation baseline:
 Roadmap targets:
 - lifecycle audit reporting and richer re-ingestion compliance telemetry.
 
-### Confidence Assessment - Status: Roadmap target
+### Confidence Assessment - Status: Implemented (baseline)
 Current implementation baseline:
 - API exposes confidence signal (high, low, abstain) produced by a resolver using extraction/lifecycle/retrieval inputs.
 
@@ -187,24 +205,23 @@ Roadmap targets:
 - profile overlays for retrieval/lifecycle/confidence,
 - ontology/taxonomy governance workflows.
 
-### Tabular Grounding and Abstention - Status: Partial
+### Tabular Grounding and Abstention - Status: Implemented (baseline)
 Current implementation baseline:
 - Tabular intent detection exists.
 - If tabular intent is detected and no tabular evidence is retrieved, the system abstains.
+- Strict matched-row evidence selection and grounding trace output are implemented.
 
 Roadmap targets:
-- matched-row grounding,
-- stronger row/header fidelity rules,
-- schema-style fallback policy controls.
+- schema-style fallback policy controls,
+- explicit PDF table grounding limits and policy.
 
-### Evaluation as Diagnosis - Status: Partial
+### Evaluation as Diagnosis - Status: Implemented (baseline)
 Current implementation baseline:
 - scripts/run_eval.py runs offline evaluation and writes JSON/Markdown reports in eval/reports.
-- Baseline metrics include retrieval, provenance completeness, abstention rate, and tabular compliance.
+- Baseline metrics include retrieval, provenance completeness, abstention rate, tabular compliance, lifecycle exclusion compliance, and confidence/tabular expectation alignment.
 
 Roadmap targets:
 - expanded datasets in eval/datasets,
-- lifecycle/freshness compliance metrics once lifecycle state is implemented,
 - richer semantic and human-reviewed evaluation layers.
 
 ### Framework Versus Implementation Boundaries - Status: Implemented
