@@ -6,10 +6,13 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scarag.confidence import resolve_confidence
 from scarag.config import RagConfig
 from scarag.generation.answerer import generate_answer
 from scarag.ingestion.loader import load_documents
 from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus, retrieve_chunks
+from scarag.provenance import validate_provenance
+from scarag.tabular_grounding import apply_tabular_grounding
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -46,6 +49,59 @@ def _safe_div(numerator: float, denominator: float) -> float:
     if denominator == 0:
         return 0.0
     return numerator / denominator
+
+
+def _to_citation(chunk: dict[str, Any], rank: int) -> dict[str, Any]:
+    source = str(chunk.get("source", "unknown"))
+    return {
+        "id": str(chunk.get("chunk_id", f"chunk-{rank}")),
+        "title": source.split("/")[-1],
+        "document": source,
+        "snippet": str(chunk.get("text", ""))[:280],
+        "score": chunk.get("score", 0.0),
+        "chunk_id": chunk.get("chunk_id"),
+        "doc_type": chunk.get("doc_type", "unknown"),
+    }
+
+
+def _confidence_matches(sample: dict[str, Any], label: str) -> tuple[bool, bool]:
+    expected = str(sample.get("expected_confidence", "")).strip().lower()
+    if not expected:
+        return False, False
+    return True, expected == label.strip().lower()
+
+
+def _excluded_sources_respected(retrieved: list[dict[str, Any]], sample: dict[str, Any]) -> tuple[bool, bool]:
+    excluded_sources = [str(value).strip() for value in (sample.get("excluded_sources") or []) if str(value).strip()]
+    if not excluded_sources:
+        return False, False
+
+    violated = False
+    for chunk in retrieved:
+        source = str(chunk.get("source", ""))
+        if any(value in source for value in excluded_sources):
+            violated = True
+            break
+    return True, not violated
+
+
+def _tabular_terms_matched(
+    grounded_chunks: list[dict[str, Any]],
+    sample: dict[str, Any],
+) -> tuple[bool, bool]:
+    expected_terms = {
+        str(value).strip().lower()
+        for value in (sample.get("expected_tabular_terms") or [])
+        if str(value).strip()
+    }
+    if not expected_terms:
+        return False, False
+
+    observed_terms: set[str] = set()
+    for chunk in grounded_chunks:
+        for term in chunk.get("matched_terms", []):
+            observed_terms.add(str(term).strip().lower())
+    return True, bool(expected_terms & observed_terms)
 
 
 def _write_markdown_report(path: Path, metrics: dict[str, float], sample_count: int) -> None:
@@ -104,6 +160,12 @@ def main() -> None:
     abstentions = 0
     tabular_compliant = 0
     tabular_samples = 0
+    confidence_expected = 0
+    confidence_matched = 0
+    lifecycle_expected = 0
+    lifecycle_compliant = 0
+    tabular_term_expected = 0
+    tabular_term_matched = 0
 
     for sample in rows:
         query = str(sample.get("query", "")).strip()
@@ -111,11 +173,23 @@ def main() -> None:
             continue
 
         retrieved = retrieve_chunks(query, chunks, config, thesaurus)
-        answer = generate_answer(
+        tabular_query = is_tabular_intent(query, thesaurus)
+        grounded_chunks, _ = apply_tabular_grounding(
             query,
             retrieved,
+            tabular_intent=tabular_query,
+        )
+        answer_context = grounded_chunks if tabular_query else retrieved
+        answer = generate_answer(
+            query,
+            answer_context,
             mode=config.generation_mode,
-            tabular_intent=is_tabular_intent(query, thesaurus),
+            tabular_intent=tabular_query,
+        )
+        confidence = resolve_confidence(
+            query,
+            answer_context,
+            tabular_intent=tabular_query,
         )
 
         relevant_positions: list[int] = []
@@ -130,19 +204,39 @@ def main() -> None:
         relevant_retrieved = len(relevant_positions)
         context_precision_total += _safe_div(relevant_retrieved, max(1, len(retrieved)))
 
-        if all(chunk.get("source") and chunk.get("chunk_id") for chunk in retrieved):
+        eval_citations = [_to_citation(chunk, index) for index, chunk in enumerate(answer_context)]
+        provenance_report = validate_provenance(answer_context, eval_citations)
+        if provenance_report["complete"]:
             provenance_complete += 1
 
-        if "cannot" in answer.lower() or "abstain" in answer.lower():
+        if confidence.label == "abstain" or "cannot" in answer.lower() or "abstain" in answer.lower():
             abstentions += 1
+
+        has_conf_expectation, conf_match = _confidence_matches(sample, confidence.label)
+        if has_conf_expectation:
+            confidence_expected += 1
+            if conf_match:
+                confidence_matched += 1
+
+        has_lifecycle_expectation, lifecycle_ok = _excluded_sources_respected(retrieved, sample)
+        if has_lifecycle_expectation:
+            lifecycle_expected += 1
+            if lifecycle_ok:
+                lifecycle_compliant += 1
 
         sample_tabular = bool(sample.get("is_tabular_intent"))
         if sample_tabular:
             tabular_samples += 1
-            has_tabular = any(bool(chunk.get("is_tabular")) for chunk in retrieved)
+            has_tabular = any(bool(chunk.get("tabular_grounded")) for chunk in answer_context)
             abstained = "cannot" in answer.lower() or "abstain" in answer.lower()
             if has_tabular or abstained:
                 tabular_compliant += 1
+
+        has_tabular_term_expectation, tabular_term_ok = _tabular_terms_matched(grounded_chunks, sample)
+        if has_tabular_term_expectation:
+            tabular_term_expected += 1
+            if tabular_term_ok:
+                tabular_term_matched += 1
 
     sample_count = len(rows)
     metrics = {
@@ -152,6 +246,9 @@ def main() -> None:
         "provenance_completeness": _safe_div(provenance_complete, sample_count),
         "abstention_rate": _safe_div(abstentions, sample_count),
         "tabular_grounding_compliance": _safe_div(tabular_compliant, max(1, tabular_samples)),
+        "confidence_alignment_rate": _safe_div(confidence_matched, max(1, confidence_expected)),
+        "lifecycle_exclusion_compliance": _safe_div(lifecycle_compliant, max(1, lifecycle_expected)),
+        "tabular_row_term_match_rate": _safe_div(tabular_term_matched, max(1, tabular_term_expected)),
     }
 
     reports_dir = Path("eval/reports")

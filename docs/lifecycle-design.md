@@ -6,18 +6,17 @@ This document specifies lifecycle and freshness behavior for active framework de
 - basic source metadata propagation on chunks,
 - file-backed lifecycle state store in place (source_unit_id, timestamps, status, soft-delete mark field),
 - lifecycle metadata propagated onto indexed chunks.
+- retrieval lifecycle policy filtering implemented (soft-delete, status allow/deny, freshness cutoff, explicit missing/invalid timestamp policy),
+- retrieval lifecycle diagnostics counters exposed.
 
 ## Roadmap Targets
-- persistent re-ingestion state,
-- freshness filtering controls,
-- soft-delete lifecycle markers,
-- lifecycle audit timelines.
+- lifecycle audit timelines and reporting utilities.
 
 ## Policy Direction
 Lifecycle policy should remain implementation-tunable while preserving framework-level evidence governance guarantees.
 
-## Lifecycle Metadata Model (Target)
-The roadmap target is a source-unit lifecycle record that supports ingest, update, skip, soft-delete, and retrieval filtering decisions.
+## Lifecycle Metadata Model (Baseline + Target Extension)
+The current baseline supports source-unit lifecycle records for ingest, update, soft-delete, and retrieval filtering decisions.
 
 Recommended lifecycle fields:
 - source_unit_id: stable identity for a source unit across ingest cycles,
@@ -26,9 +25,9 @@ Recommended lifecycle fields:
 - last_upsert_iso_ts: most recent accepted upsert time,
 - deletion_mark_iso_ts: soft-delete marker timestamp when applicable,
 - status: implementation-defined lifecycle state (for example active, retired, pending_review),
-- lifecycle_event_log: append-only event trail for audit and debugging.
+- lifecycle_event_log: append-only event trail for audit and debugging (roadmap extension).
 
-## Retrieval Policy Semantics (Target)
+## Retrieval Policy Semantics (Implemented Baseline)
 When lifecycle controls are enabled, retrieval should apply lifecycle policy before final ranking output.
 
 Recommended policy order:

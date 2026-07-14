@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import math
 import hashlib
 import json
 import re
+from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from scarag.config import RagConfig
 from scarag.lifecycle import LifecycleStateStore
+from scarag.metadata import EvidenceMetadata, build_confidence_inputs, utc_now_iso
+from scarag.retrieval.interfaces import RetrievalRequest, RetrievalResponse, Retriever
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 
@@ -259,6 +263,9 @@ def build_chunk_index(
             content_fingerprint=fingerprint,
         )
 
+        extraction_method = str(document.get("extraction_method") or "text_file_parser")
+        extraction_ts = str(document.get("extraction_ts") or utc_now_iso())
+
         doc_type = str(document.get("doc_type") or infer_doc_type(source, text))
         tabular = _looks_tabular(text)
         raw_chunks = (
@@ -271,22 +278,31 @@ def build_chunk_index(
             normalized = chunk_text.strip()
             if not normalized:
                 continue
-            chunks.append(
-                {
-                    "chunk_id": f"{Path(source).name}:{index}",
-                    "source_unit_id": source_unit_id,
-                    "source": source,
-                    "text": normalized,
-                    "doc_type": doc_type,
-                    "domain_area": "unknown",
-                    "is_tabular": tabular,
-                    "content_fingerprint": _content_fingerprint(normalized),
-                    "ingestion_iso_ts": lifecycle_record.ingestion_iso_ts,
-                    "last_upsert_iso_ts": lifecycle_record.last_upsert_iso_ts,
-                    "deletion_mark_iso_ts": lifecycle_record.deletion_mark_iso_ts,
-                    "status": lifecycle_record.status,
-                }
+            chunk_id = f"{Path(source).name}:{index}"
+            confidence_inputs = build_confidence_inputs(
+                extraction_method=extraction_method,
+                status=lifecycle_record.status,
+                deletion_mark_iso_ts=lifecycle_record.deletion_mark_iso_ts,
+                is_tabular=tabular,
             )
+            metadata = EvidenceMetadata(
+                chunk_id=chunk_id,
+                source_unit_id=source_unit_id,
+                source=source,
+                text=normalized,
+                doc_type=doc_type,
+                domain_area="unknown",
+                is_tabular=tabular,
+                content_fingerprint=_content_fingerprint(normalized),
+                extraction_method=extraction_method,
+                extraction_ts=extraction_ts,
+                ingestion_iso_ts=lifecycle_record.ingestion_iso_ts,
+                last_upsert_iso_ts=lifecycle_record.last_upsert_iso_ts,
+                deletion_mark_iso_ts=lifecycle_record.deletion_mark_iso_ts,
+                status=lifecycle_record.status,
+                confidence_inputs=confidence_inputs,
+            )
+            chunks.append(metadata.to_dict())
 
     return chunks
 
@@ -297,33 +313,12 @@ def retrieve_chunks(
     config: RagConfig,
     thesaurus: dict[str, Any],
 ) -> list[dict[str, Any]]:
-    ranked, _ = retrieve_chunks_with_diagnostics(query, chunks, config, thesaurus)
-    return ranked
+    response = retrieve_via_interface(query, chunks, config, thesaurus)
+    return response.ranked_chunks
 
 
-def retrieve_chunks_with_diagnostics(
-    query: str,
-    chunks: list[dict[str, Any]],
-    config: RagConfig,
-    thesaurus: dict[str, Any],
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
-    query_terms = expand_query_terms(query, thesaurus)
-    if not query_terms:
-        return [], {
-            "candidates": 0,
-            "retained": 0,
-            "filtered_soft_deleted": 0,
-            "filtered_status_allow_list": 0,
-            "filtered_status_deny_list": 0,
-            "filtered_freshness_stale": 0,
-            "filtered_freshness_missing_timestamp": 0,
-            "filtered_freshness_invalid_timestamp": 0,
-            "filtered_missing_source_unit_id": 0,
-            "filtered_missing_persisted_record": 0,
-        }
-
-    lifecycle_store = LifecycleStateStore(config.lifecycle_state_path)
-    diagnostics = {
+def _empty_diagnostics() -> dict[str, int]:
+    return {
         "candidates": 0,
         "retained": 0,
         "filtered_soft_deleted": 0,
@@ -335,7 +330,16 @@ def retrieve_chunks_with_diagnostics(
         "filtered_missing_source_unit_id": 0,
         "filtered_missing_persisted_record": 0,
     }
-    weighted: list[dict[str, Any]] = []
+
+
+def _apply_lifecycle_filters(
+    chunks: list[dict[str, Any]],
+    config: RagConfig,
+    lifecycle_store: LifecycleStateStore,
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    diagnostics = _empty_diagnostics()
+    candidates: list[dict[str, Any]] = []
+
     for chunk in chunks:
         diagnostics["candidates"] += 1
         filter_reason = _lifecycle_filter_reason(chunk, config, lifecycle_store)
@@ -343,7 +347,21 @@ def retrieve_chunks_with_diagnostics(
             key = f"filtered_{filter_reason}"
             diagnostics[key] = diagnostics.get(key, 0) + 1
             continue
+        candidates.append(chunk)
 
+    return candidates, diagnostics
+
+
+def _score_lexical(
+    query_terms: set[str],
+    candidates: list[dict[str, Any]],
+    config: RagConfig,
+) -> list[dict[str, Any]]:
+    weighted: list[dict[str, Any]] = []
+    if not query_terms:
+        return weighted
+
+    for chunk in candidates:
         text_terms = _tokenize(str(chunk.get("text", "")))
         if not text_terms:
             continue
@@ -363,9 +381,200 @@ def retrieve_chunks_with_diagnostics(
         weighted.append(with_score)
 
     weighted.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
-    retained = weighted[: config.top_k]
-    diagnostics["retained"] = len(retained)
-    return retained, diagnostics
+    return weighted
+
+
+def _score_tfidf(
+    query_terms: set[str],
+    candidates: list[dict[str, Any]],
+    config: RagConfig,
+) -> list[dict[str, Any]]:
+    weighted: list[dict[str, Any]] = []
+    if not query_terms or not candidates:
+        return weighted
+
+    tokenized_docs = [_tokenize(str(chunk.get("text", ""))) for chunk in candidates]
+    doc_term_counts = [Counter(tokens) for tokens in tokenized_docs]
+    if not any(doc_term_counts):
+        return weighted
+
+    doc_frequency: Counter[str] = Counter()
+    for counts in doc_term_counts:
+        for term in counts:
+            doc_frequency[term] += 1
+
+    doc_count = len(candidates)
+    query_count = Counter(query_terms)
+    query_weights: dict[str, float] = {}
+    for term, count in query_count.items():
+        idf = math.log((1 + doc_count) / (1 + doc_frequency.get(term, 0))) + 1.0
+        query_weights[term] = float(count) * idf
+
+    query_norm = math.sqrt(sum(value * value for value in query_weights.values()))
+    if query_norm == 0.0:
+        return weighted
+
+    for chunk, term_counts in zip(candidates, doc_term_counts):
+        if not term_counts:
+            continue
+
+        total_terms = sum(term_counts.values())
+        doc_weights: dict[str, float] = {}
+        for term, count in term_counts.items():
+            tf = count / max(1, total_terms)
+            idf = math.log((1 + doc_count) / (1 + doc_frequency.get(term, 0))) + 1.0
+            doc_weights[term] = tf * idf
+
+        dot = sum(doc_weights.get(term, 0.0) * query_weights.get(term, 0.0) for term in query_weights)
+        doc_norm = math.sqrt(sum(value * value for value in doc_weights.values()))
+        similarity = 0.0 if doc_norm == 0.0 else dot / (doc_norm * query_norm)
+
+        doc_type = str(chunk.get("doc_type", "unknown")).lower()
+        doc_weight = 1.1 if doc_type in {"policy", "procedure", "report", "faq"} else 1.0
+        final_score = similarity * doc_weight
+
+        if final_score < config.min_retrieval_score:
+            continue
+
+        with_score = dict(chunk)
+        with_score["score"] = round(final_score, 4)
+        weighted.append(with_score)
+
+    weighted.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
+    return weighted
+
+
+def _rrf_fuse(
+    lexical: list[dict[str, Any]],
+    tfidf: list[dict[str, Any]],
+    config: RagConfig,
+) -> list[dict[str, Any]]:
+    rank_lex = {str(item.get("chunk_id", "")): idx for idx, item in enumerate(lexical, start=1)}
+    rank_tfidf = {str(item.get("chunk_id", "")): idx for idx, item in enumerate(tfidf, start=1)}
+    all_ids = set(rank_lex) | set(rank_tfidf)
+
+    by_id: dict[str, dict[str, Any]] = {}
+    for item in lexical + tfidf:
+        key = str(item.get("chunk_id", ""))
+        if key and key not in by_id:
+            by_id[key] = item
+
+    fused: list[dict[str, Any]] = []
+    for key in all_ids:
+        lex_rank = rank_lex.get(key)
+        tfidf_rank = rank_tfidf.get(key)
+        lex_rrf = 0.0 if lex_rank is None else 1.0 / (config.hybrid_rrf_k + lex_rank)
+        tfidf_rrf = 0.0 if tfidf_rank is None else 1.0 / (config.hybrid_rrf_k + tfidf_rank)
+        score = lex_rrf + tfidf_rrf
+
+        item = dict(by_id[key])
+        item["score"] = round(score, 6)
+        fused.append(item)
+
+    fused.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
+    return fused
+
+
+def retrieve_chunks_with_diagnostics(
+    query: str,
+    chunks: list[dict[str, Any]],
+    config: RagConfig,
+    thesaurus: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    response = retrieve_via_interface(query, chunks, config, thesaurus)
+    return response.ranked_chunks, response.diagnostics
+
+
+class LexicalRetriever(Retriever):
+    """Default retrieval backend used by the current public baseline."""
+
+    def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
+        query_terms = expand_query_terms(request.query, request.thesaurus)
+        if not query_terms:
+            return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
+
+        lifecycle_store = LifecycleStateStore(request.config.lifecycle_state_path)
+        candidates, diagnostics = _apply_lifecycle_filters(
+            request.chunks,
+            request.config,
+            lifecycle_store,
+        )
+
+        ranked = _score_lexical(query_terms, candidates, request.config)
+        retained = ranked[: request.config.top_k]
+        diagnostics["retained"] = len(retained)
+        return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
+
+
+class TfidfRetriever(Retriever):
+    """TF-IDF cosine similarity backend for retrieval."""
+
+    def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
+        query_terms = expand_query_terms(request.query, request.thesaurus)
+        if not query_terms:
+            return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
+
+        lifecycle_store = LifecycleStateStore(request.config.lifecycle_state_path)
+        candidates, diagnostics = _apply_lifecycle_filters(
+            request.chunks,
+            request.config,
+            lifecycle_store,
+        )
+
+        ranked = _score_tfidf(query_terms, candidates, request.config)
+        retained = ranked[: request.config.top_k]
+        diagnostics["retained"] = len(retained)
+        return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
+
+
+class HybridRrfRetriever(Retriever):
+    """Hybrid retriever that fuses lexical and TF-IDF ranking using RRF."""
+
+    def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
+        query_terms = expand_query_terms(request.query, request.thesaurus)
+        if not query_terms:
+            return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
+
+        lifecycle_store = LifecycleStateStore(request.config.lifecycle_state_path)
+        candidates, diagnostics = _apply_lifecycle_filters(
+            request.chunks,
+            request.config,
+            lifecycle_store,
+        )
+
+        lexical = _score_lexical(query_terms, candidates, request.config)
+        tfidf = _score_tfidf(query_terms, candidates, request.config)
+        fused = _rrf_fuse(lexical, tfidf, request.config)
+        retained = fused[: request.config.top_k]
+        diagnostics["retained"] = len(retained)
+        return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
+
+
+def retrieve_via_interface(
+    query: str,
+    chunks: list[dict[str, Any]],
+    config: RagConfig,
+    thesaurus: dict[str, Any],
+    retriever: Retriever | None = None,
+) -> RetrievalResponse:
+    if retriever is None:
+        backend = config.retrieval_backend.strip().lower()
+        if backend == "tfidf":
+            active_retriever: Retriever = TfidfRetriever()
+        elif backend in {"hybrid", "hybrid_rrf"}:
+            active_retriever = HybridRrfRetriever()
+        else:
+            active_retriever = LexicalRetriever()
+    else:
+        active_retriever = retriever
+
+    request = RetrievalRequest(
+        query=query,
+        chunks=chunks,
+        config=config,
+        thesaurus=thesaurus,
+    )
+    return active_retriever.retrieve(request)
 
 
 def load_thesaurus(config: RagConfig) -> dict[str, Any]:

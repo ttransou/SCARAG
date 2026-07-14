@@ -29,6 +29,9 @@ def test_chunk_index_includes_lifecycle_fields_and_persists_state(tmp_path: Path
     assert first["deletion_mark_iso_ts"] is None
     assert first["ingestion_iso_ts"]
     assert first["last_upsert_iso_ts"]
+    assert first["extraction_method"]
+    assert first["extraction_ts"]
+    assert isinstance(first["confidence_inputs"], dict)
 
     persisted = json.loads(state_path.read_text(encoding="utf-8"))
     assert first["source_unit_id"] in persisted

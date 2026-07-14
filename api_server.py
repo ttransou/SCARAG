@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from scarag.confidence import resolve_confidence
 from scarag.config import RagConfig
 from scarag.generation.answerer import generate_answer
 from scarag.ingestion.loader import load_documents
 from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus, retrieve_chunks
+from scarag.provenance import validate_provenance
+from scarag.tabular_grounding import apply_tabular_grounding
 
 try:
     from fastapi import FastAPI
@@ -46,7 +49,7 @@ def _get_chunks() -> list[dict[str, Any]]:
 
 def _to_citation(chunk: dict[str, Any], rank: int) -> dict[str, Any]:
     source = str(chunk.get("source", "unknown"))
-    return {
+    citation = {
         "id": str(chunk.get("chunk_id", f"chunk-{rank}")),
         "title": source.split("/")[-1],
         "document": source,
@@ -55,6 +58,11 @@ def _to_citation(chunk: dict[str, Any], rank: int) -> dict[str, Any]:
         "chunk_id": chunk.get("chunk_id"),
         "doc_type": chunk.get("doc_type", "unknown"),
     }
+    if bool(chunk.get("tabular_grounded")):
+        citation["tabular_grounded"] = True
+        citation["matched_row_count"] = int(chunk.get("matched_row_count", 0))
+        citation["matched_terms"] = list(chunk.get("matched_terms", []))
+    return citation
 
 
 @app.get("/api/health")
@@ -85,20 +93,27 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
             },
             "citations": [],
             "collapsed_citations": [],
+            "confidence": "abstain",
             "answer": response_text,
         }
 
     chunks = _get_chunks()
     ranked_chunks = retrieve_chunks(query, chunks, _CONFIG, _THESAURUS)
     tabular_query = is_tabular_intent(query, _THESAURUS)
-    response_text = generate_answer(
+    grounded_chunks, tabular_trace = apply_tabular_grounding(
         query,
         ranked_chunks,
+        tabular_intent=tabular_query,
+    )
+    answer_context = grounded_chunks if tabular_query else ranked_chunks
+    response_text = generate_answer(
+        query,
+        answer_context,
         mode=_CONFIG.generation_mode,
         tabular_intent=tabular_query,
     )
 
-    citations = [_to_citation(chunk, index) for index, chunk in enumerate(ranked_chunks)]
+    citations = [_to_citation(chunk, index) for index, chunk in enumerate(answer_context)]
     visible = citations[:3]
     collapsed = citations[3:]
 
@@ -112,15 +127,21 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
         "hidden_count": len(collapsed),
         "label": "citations available" if citations else "no citations",
     }
+    provenance_validation = validate_provenance(answer_context, citations)
 
-    confidence = "high" if citations else "low"
-    if tabular_query and not any(bool(chunk.get("is_tabular")) for chunk in ranked_chunks):
-        confidence = "abstain"
+    confidence_result = resolve_confidence(
+        query,
+        answer_context,
+        tabular_intent=tabular_query,
+    )
+    confidence = confidence_result.label
 
     return {
         "message": {
             "text": response_text,
             "citations_summary": summary,
+            "tabular_trace": tabular_trace,
+            "provenance_validation": provenance_validation,
         },
         "citations": visible,
         "collapsed_citations": collapsed,

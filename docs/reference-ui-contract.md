@@ -22,6 +22,7 @@ The `message` object contains:
 
 - `text`: the rendered answer text
 - `citations_summary`: a compact summary of visible and hidden evidence
+- `tabular_trace` (optional): grounding diagnostics for tabular-intent handling
 
 `citations_summary` contains:
 
@@ -72,6 +73,9 @@ The reference contract expects the following citation fields when available:
 - `score`: retrieval score or ranking signal
 - `chunk_id`: underlying chunk identifier
 - `doc_type`: document type or source classification
+- `tabular_grounded`: whether citation evidence passed row-grounding policy for tabular intent
+- `matched_row_count`: number of matched rows used from the citation chunk
+- `matched_terms`: query terms matched against row/header evidence
 
 The UI should link to the source when a usable link is available. If no link is present, the reference frontend may use a placeholder link, but implementation stacks should prefer a resolvable source target.
 

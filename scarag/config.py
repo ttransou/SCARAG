@@ -13,6 +13,8 @@ class RagConfig:
     generation_mode: str = "extractive"
     top_k: int = 5
     min_retrieval_score: float = 0.25
+    retrieval_backend: str = "lexical"
+    hybrid_rrf_k: int = 60
     chunk_size: int = 120
     overlap: int = 20
     min_chunk_words: int = 40

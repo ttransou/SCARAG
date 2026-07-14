@@ -1,0 +1,3 @@
+{"id":"canon-policy-retrieval","query":"policy review cadence","expected_sources":["policy"],"expected_confidence":"high","excluded_sources":["retired"],"is_tabular_intent":false}
+{"id":"canon-tabular-row-match","query":"alpha q1 value","expected_sources":["table","csv"],"expected_confidence":"high","is_tabular_intent":true,"expected_tabular_terms":["alpha","q1"]}
+{"id":"canon-abstain-no-evidence","query":"nonexistent unique phrase 9f4b2","expected_confidence":"abstain","is_tabular_intent":false}

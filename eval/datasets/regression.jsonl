@@ -1,0 +1,2 @@
+{"id":"reg-soft-delete-filter","query":"retired policy controls","excluded_sources":["retired","deprecated"],"expected_confidence":"abstain","is_tabular_intent":false}
+{"id":"reg-tabular-no-row-match-abstain","query":"gamma q4 value","is_tabular_intent":true,"expected_confidence":"abstain","expected_tabular_terms":["gamma","q4"]}

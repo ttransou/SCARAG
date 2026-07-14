@@ -4,10 +4,11 @@ This document defines row-grounded answering rules for tabular intent.
 
 ## Current Public Baseline
 - tabular intent detection,
-- abstention when tabular intent has no tabular evidence.
+- strict row-grounded tabular policy: tabular intent answers must be backed by matched table rows,
+- abstention when tabular intent has no matched row evidence,
+- tabular trace output with matched chunk and row counts.
 
 ## Roadmap Targets
-- matched-row grounding behavior,
 - header and row-window fidelity requirements,
 - schema-style fallback policy controls,
 - tabular-specific evaluation diagnostics.

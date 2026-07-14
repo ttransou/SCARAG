@@ -319,6 +319,26 @@ Use this dataset to answer:
 
 Boundary examples are especially important for governed domains.
 
+## Reference Dataset Row Fields (Baseline)
+
+The baseline offline evaluator now supports expectation-driven row fields:
+
+* expected_confidence: expected confidence label (high, low, abstain)
+* excluded_sources: source substrings that must not appear in retrieved evidence
+* expected_tabular_terms: terms that should appear in matched row/header evidence for tabular intent
+
+These fields complement existing query/expected_sources fields and enable framework checks for confidence alignment, lifecycle exclusion compliance, and tabular row-term matching.
+
+## Baseline Extended Metrics
+
+The offline evaluator now reports:
+
+* confidence_alignment_rate
+* lifecycle_exclusion_compliance
+* tabular_row_term_match_rate
+
+These metrics are in addition to hit rate, MRR, context precision, provenance completeness, abstention rate, and tabular grounding compliance.
+
 ## **Recommended Dataset Fields**
 
 Each evaluation record should include enough information to diagnose behavior.

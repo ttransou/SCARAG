@@ -89,15 +89,15 @@ graph LR
 | document type inference | Implemented | scarag/pipeline.py infer_doc_type | Expand taxonomy and profile-driven typing |
 | prose chunking | Implemented | scarag/pipeline.py _chunk_prose | Add cohesion-aware splitting and policy-tuned chunking |
 | tabular chunking | Partial | scarag/pipeline.py _looks_tabular + _chunk_tabular row windows | Improve table detection and row/header fidelity across formats |
-| metadata propagation | Partial | chunk fields include source, chunk_id, doc_type, domain_area, is_tabular, content_fingerprint | Add extraction_method, lifecycle metadata, and persistent state propagation |
+| metadata propagation | Implemented (baseline) | canonical evidence fields include source, chunk_id, source_unit_id, extraction and lifecycle metadata, and confidence inputs | Extend with resolver-specific confidence debug fields as resolver matures |
 | provenance/citations | Partial | api_server.py citation envelope and frontend evidence drawer | Enforce richer provenance contract and source-resolvable linking |
 | thesaurus/query expansion | Implemented | config/synonyms.json + scarag/pipeline.py expand_query_terms | Add profile overlays, governance for term drift, and diagnostics |
 | lexical retrieval | Implemented | scarag/pipeline.py retrieve_chunks token overlap + doc_type weighting | Tune weights and add calibration tooling |
-| vector or TF-IDF retrieval | Roadmap target | Not implemented in current public pipeline | Add TF-IDF/vector backend and score normalization path |
-| hybrid reranking | Roadmap target | Not implemented; simple lexical weighting only | Add hybrid retrieval and rerank strategies with diagnostics |
-| confidence resolver | Roadmap target | api_server.py exposes simple high/low/abstain signal, no resolver module | Build confidence framework from extraction metadata and overlays |
-| lifecycle/freshness controls | Roadmap target | No persistent lifecycle state; no freshness filtering in retrieval | Add lifecycle metadata model, freshness filters, and stateful re-ingestion |
-| soft delete/re-ingestion state | Roadmap target | No re-ingestion state store in current code | Add state path, soft delete markers, and audit timeline tooling |
+| vector or TF-IDF retrieval | Partial | TF-IDF backend implemented with cosine normalization; vector backend not implemented | Add vector backend and calibration path |
+| hybrid reranking | Implemented (baseline) | lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interface | Expand diagnostics and semantic blending policies |
+| confidence resolver | Implemented (baseline) | resolver consumes extraction tier + lifecycle signal + retrieval strength + evidence coverage and emits high/low/abstain | Add profile/domain overlays, temporal decay, and richer debug traces |
+| lifecycle/freshness controls | Implemented (baseline) | persistent lifecycle state, freshness filtering, status filters, and diagnostics in retrieval | Add lifecycle audit reporting utilities |
+| soft delete/re-ingestion state | Implemented (baseline) | file-backed state store with source_unit_id, ingestion/upsert timestamps, status, and soft-delete marks | Add audit timeline tooling and skip-unchanged reporting |
 | tabular grounding | Partial | tabular intent detection plus abstention when no tabular evidence | Add matched-row grounding and stricter row-faithful answering |
 | generation modes | Partial | extractive, mock, live placeholder in scarag/generation/answerer.py | Add provider adapters and stronger grounding-aware generation contracts |
 | citation response contract | Implemented | docs/reference-ui-contract.md and api_server.py response fields | Expand contract tests and richer citation metadata |
@@ -161,19 +161,21 @@ Roadmap targets:
 - stronger provenance completeness rules,
 - source-resolvable links and richer citation metadata validation.
 
-### Lifecycle and Freshness - Status: Roadmap target
+### Lifecycle and Freshness - Status: Implemented (baseline)
 Current implementation baseline:
-- Basic source metadata is propagated on chunks.
+- Lifecycle state is persisted in a file-backed store keyed by source_unit_id.
+- Chunks include lifecycle timestamps, status, and soft-delete markers.
+- Retrieval enforces lifecycle policy filters (soft-delete exclusion, status allow/deny, freshness cutoff) with diagnostics.
 
-Important correction:
-- Persistent lifecycle state, freshness filtering, and soft-delete/re-ingestion controls are roadmap targets and are not fully implemented in current public code.
+Roadmap targets:
+- lifecycle audit reporting and richer re-ingestion compliance telemetry.
 
 ### Confidence Assessment - Status: Roadmap target
 Current implementation baseline:
-- API exposes a lightweight confidence signal (high, low, abstain).
+- API exposes confidence signal (high, low, abstain) produced by a resolver using extraction/lifecycle/retrieval inputs.
 
-Important correction:
-- The confidence framework described in SCARAG design docs is part of the implementation roadmap; a full confidence resolver is not yet implemented.
+Roadmap targets:
+- domain overlays, temporal decay, and richer confidence debug traces.
 
 ### Domain Profiles and Ontology/Taxonomy Tailoring - Status: Partial
 Current implementation baseline:

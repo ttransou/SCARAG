@@ -29,11 +29,28 @@ def generate_answer(
     if not context:
         return "I cannot answer confidently because no supporting evidence was retrieved."
 
-    if tabular_intent and not any(bool(item.get("is_tabular")) for item in context):
-        return (
-            "I cannot provide a row-grounded tabular answer because no matching table evidence "
-            "was retrieved."
-        )
+    if tabular_intent:
+        tabular_chunks = [item for item in context if bool(item.get("is_tabular"))]
+        grounded_rows: list[str] = []
+        for chunk in tabular_chunks:
+            matched_rows = chunk.get("matched_rows")
+            if not isinstance(matched_rows, list):
+                continue
+            for row in matched_rows:
+                if isinstance(row, dict):
+                    row_text = str(row.get("row_text", "")).strip()
+                else:
+                    row_text = str(row).strip()
+                if row_text:
+                    grounded_rows.append(row_text)
+
+        if not grounded_rows:
+            return (
+                "I cannot provide a row-grounded tabular answer because no matching table rows "
+                "were retrieved."
+            )
+
+        return "\n".join(grounded_rows[:3])
 
     snippets = [str(item.get("text", "")).strip() for item in context if str(item.get("text", "")).strip()]
     if not snippets:

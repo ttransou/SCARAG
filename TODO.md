@@ -14,15 +14,15 @@ This file tracks implementation work needed to reconcile the public framework ba
 Dependency order is intentional. Complete top to bottom to unlock downstream work.
 Branch timing and branch-cut dependencies are tracked separately in Branching Gates (Set Aside).
 
-1. [ ] Roadmap target (Foundational): Mature framework-first contracts on main (schema boundaries, lifecycle semantics, confidence inputs, and retrieval interfaces).
-2. [ ] Roadmap target (Foundational): Define and implement canonical evidence/metadata schema in code and docs.
-3. [ ] Roadmap target (Foundational): Add lifecycle persistence model (source_unit_id, timestamps, status, soft-delete marks).
+1. [x] Implemented (Foundational): Mature framework-first contracts on main (schema boundaries, lifecycle semantics, confidence inputs, and retrieval interfaces).
+2. [x] Implemented (Foundational): Define and implement canonical evidence/metadata schema in code and docs.
+3. [x] Implemented (Foundational): Add lifecycle persistence model (source_unit_id, timestamps, status, soft-delete marks).
 4. [x] Implemented (Foundational): Wire retrieval-side lifecycle/freshness/status filters against persisted state.
-5. [ ] Roadmap target (Foundational): Implement confidence resolver that consumes extraction + lifecycle signals.
-6. [ ] Roadmap target (Foundational): Add TF-IDF/vector retrieval path and hybrid rerank scaffold.
-7. [ ] Roadmap target: Strengthen tabular grounding from intent-only guardrail to matched-row evidence policy.
-8. [ ] Roadmap target: Expand evaluation datasets/metrics to cover new lifecycle/confidence/tabular behavior.
-9. [ ] Roadmap target: Add contract-stability tests for API envelope and citation shaping.
+5. [x] Implemented (Foundational): Implement confidence resolver that consumes extraction + lifecycle signals.
+6. [x] Implemented (Foundational): Add TF-IDF retrieval path and hybrid rerank scaffold.
+7. [x] Implemented: Strengthen tabular grounding from intent-only guardrail to matched-row evidence policy.
+8. [x] Implemented: Expand evaluation datasets/metrics to cover new lifecycle/confidence/tabular behavior.
+9. [x] Implemented: Add contract-stability tests for API envelope and citation shaping.
 
 ## Branching Gates (Set Aside)
 These items are intentionally tracked outside Immediate Priorities and should be evaluated when framework-main milestones are ready.
@@ -33,24 +33,24 @@ These items are intentionally tracked outside Immediate Priorities and should be
 ## Capability Backlog
 
 ### 1. Evidence / Metadata Schema
-- [ ] Partial: Chunk records currently include source, chunk_id, doc_type, domain_area, is_tabular, content_fingerprint.
-- [ ] Roadmap target (Foundational): Define canonical evidence unit schema in docs/metadata-model.md with required and optional fields.
-- [ ] Roadmap target (Foundational): Add source_unit_id to ingestion/chunk pipeline for stable source-unit identity.
-- [ ] Roadmap target (Foundational): Add extraction_method and extraction_ts metadata on all extracted units.
-- [ ] Roadmap target (Foundational): Add lifecycle fields ingestion_iso_ts, last_upsert_iso_ts, deletion_mark_iso_ts, status.
-- [ ] Roadmap target: Add confidence input fields expected by resolver (base extraction tier, temporal features, intent flags).
-- [ ] Roadmap target: Add provenance completeness validator that checks required citation and source fields.
+- [x] Implemented: Chunk records now follow canonical schema fields, including source, chunk_id, source_unit_id, extraction metadata, lifecycle metadata, and confidence_inputs.
+- [x] Implemented (Foundational): Define canonical evidence unit schema in docs/metadata-model.md with required and optional fields.
+- [x] Implemented (Foundational): Add source_unit_id to ingestion/chunk pipeline for stable source-unit identity.
+- [x] Implemented (Foundational): Add extraction_method and extraction_ts metadata on all extracted units.
+- [x] Implemented (Foundational): Add lifecycle fields ingestion_iso_ts, last_upsert_iso_ts, deletion_mark_iso_ts, status.
+- [x] Implemented: Add confidence input fields expected by resolver (base extraction tier, lifecycle flags, tabular signal).
+- [x] Implemented: Add provenance completeness validator that checks required citation and source fields.
 
 ### 2. Ingestion
-- [ ] Partial: Supports txt, md, json, csv, html/htm, mhtml/mht, pdf, docx, pptx, xlsx/xls loading.
-- [ ] Roadmap target: Add recursive JSON flattening (nested dict/list path expansion) instead of shallow key:value rendering.
-- [ ] Partial: DOCX/PPTX/XLSX text extraction exists; table extraction strategy is simplistic.
-- [ ] Roadmap target: Add explicit DOCX/PPTX/XLSX table extraction metadata (table_id, row_index, header fields).
-- [ ] Roadmap target: Improve PDF table handling beyond text-layer extraction heuristics.
-- [ ] Partial: MHTML parser handles basic text/html part extraction; multipart robustness gaps remain.
-- [ ] Roadmap target: Add image marker propagation where non-text objects are encountered.
-- [ ] Partial: .xls path currently routed through openpyxl; verify and harden legacy .xls behavior or provide converter fallback.
-- [ ] Roadmap target: Emit extraction_method metadata for every parser path.
+- [x] Implemented (baseline): Supports txt, md, json, csv, html/htm, mhtml/mht, pdf, docx, pptx, xlsx/xls loading.
+- [x] Implemented: Add recursive JSON flattening (nested dict/list path expansion) instead of shallow key:value rendering.
+- [x] Implemented (baseline): DOCX/PPTX/XLSX extraction includes table text and table metadata (table_id, row_count, column_count, header fields).
+- [x] Implemented: Add explicit DOCX/PPTX/XLSX table extraction metadata (table_id, row_count, column_count, header fields).
+- [x] Implemented (baseline): Improve PDF table handling beyond text-layer extraction heuristics (pdfplumber table extraction with text fallback).
+- [x] Implemented (baseline): MHTML parser handles nested multipart extraction with HTML/plain-part decoding fallback.
+- [x] Implemented (baseline): Add image marker propagation where non-text objects are encountered.
+- [x] Implemented: .xls path hardened with xlrd fallback when openpyxl rejects legacy files.
+- [x] Implemented: Emit extraction_method metadata for every parser path.
 
 ### 3. Chunking
 - [X] Implemented: Prose chunking with chunk_size, overlap, min_chunk_words.
@@ -64,19 +64,19 @@ These items are intentionally tracked outside Immediate Priorities and should be
 ### 4. Retrieval
 - [X] Implemented: Query expansion from config/synonyms.json.
 - [X] Implemented: Score threshold and top_k controls in lexical retrieval.
-- [ ] Roadmap target (Foundational): Add TF-IDF retrieval backend with explicit normalization behavior.
+- [x] Implemented (Foundational): Add TF-IDF retrieval backend with explicit cosine normalization behavior.
 - [ ] Roadmap target (Foundational): Add vector retrieval backend behind configurable adapter boundary.
 - [ ] Design/specification: Similarity metric options beyond current lexical overlap pending vector backend.
 - [ ] Partial: Metadata weighting currently doc_type-only.
 - [ ] Roadmap target: Add boilerplate penalties once repeated boilerplate signals are persisted.
 - [ ] Roadmap target: Add table-aware boosting tied to tabular intent and row/header matches.
-- [ ] Roadmap target: Add reranking strategies including RRF and lexical/semantic hybrid blending.
+- [x] Implemented: Add baseline reranking strategy with lexical/TF-IDF hybrid RRF blending scaffold.
 - [ ] Roadmap target: Add retrieval diagnostics output mode for query terms, candidate pruning, and final rank explanations.
 
 ### 5. Governance / Lifecycle / Freshness
-- [ ] Partial (Foundational): Persist ingestion timestamps and upsert timestamps per source_unit_id (baseline store + chunk propagation implemented).
-- [ ] Partial: Persist deletion marks and status values in lifecycle state (fields and store semantics implemented; retrieval filtering still pending).
-- [ ] Partial (Foundational): Implement persistent re-ingestion state store (file-backed baseline implemented; audit/reporting hardening pending).
+- [x] Implemented (Foundational): Persist ingestion timestamps and upsert timestamps per source_unit_id (baseline store + chunk propagation implemented).
+- [x] Implemented: Persist deletion marks and status values in lifecycle state (fields and store semantics implemented).
+- [x] Implemented (Foundational): Implement persistent re-ingestion state store (file-backed baseline implemented; audit/reporting hardening pending).
 - [ ] Roadmap target: Add skip-unchanged behavior controlled by explicit flag and audit logging.
 - [x] Implemented: Exclude soft-deleted units by default from retrieval.
 - [x] Implemented: Add freshness filtering based on lifecycle timestamps.
@@ -86,8 +86,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 
 ### 6. Confidence / Provenance
 - [ ] Partial: API emits high/low/abstain confidence signal.
-- [ ] Roadmap target (Foundational): Implement confidence resolver module and integrate into pipeline.
-- [ ] Roadmap target: Define extraction confidence tiers and mapping from extraction_method.
+- [x] Implemented (Foundational): Implement confidence resolver module and integrate into API and evaluation pipeline.
+- [x] Implemented: Define extraction confidence tiers and baseline mapping from extraction_method.
 - [ ] Roadmap target: Add domain confidence overlays in profile configs.
 - [ ] Roadmap target: Add temporal decay support in confidence scoring.
 - [ ] Roadmap target: Add intent-based confidence boosting/penalties.
@@ -98,8 +98,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 ### 7. Tabular Grounding
 - [ ] Partial: Table intent detection exists via thesaurus intent group.
 - [ ] Partial: Abstention when tabular intent has no tabular evidence is implemented.
-- [ ] Roadmap target: Enforce strict row-grounded answering for tabular intent.
-- [ ] Roadmap target: Add matched-row evidence selection and trace output.
+- [x] Implemented: Enforce strict row-grounded answering for tabular intent.
+- [x] Implemented: Add matched-row evidence selection and trace output.
 - [ ] Roadmap target: Define schema-style fallback policy and hard guardrails.
 - [ ] Partial: XLSX/XLS ingestion path exists; row-faithfulness guarantees are incomplete.
 - [ ] Roadmap target: Define explicit PDF table behavior and limits for grounded tabular answers.
@@ -118,8 +118,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [X] Implemented: /api/health and /api/chat endpoints exist.
 - [X] Implemented: Response envelope includes message, citations_summary, citations, collapsed_citations, answer, confidence.
 - [ ] Partial: Legacy payload compatibility exists in UI normalization path (sources fallback), not fully contract-tested.
-- [ ] Roadmap target: Add explicit contract tests for envelope fields and type stability.
-- [ ] Roadmap target: Add tests for citation summary count semantics and collapsed-citation behavior.
+- [x] Implemented: Add explicit contract tests for envelope fields and type stability.
+- [x] Implemented: Add tests for citation summary count semantics and collapsed-citation behavior.
 - [ ] Roadmap target: Version contract changes with documented migration notes when fields evolve.
 
 ### 10. Reference UI
@@ -139,10 +139,10 @@ These items are intentionally tracked outside Immediate Priorities and should be
 
 ### 11. Evaluation
 - [ ] Partial: Offline runner and report generation implemented in scripts/run_eval.py.
-- [ ] Roadmap target: Create canonical, regression, and drift datasets under eval/datasets.
+- [x] Implemented: Create canonical, regression, and drift dataset seeds under eval/datasets.
 - [ ] Roadmap target: Add implementation-specific validation datasets and benchmark runners in domain/implementation branches.
 - [X] Implemented: hit_rate, MRR, context_precision, provenance_completeness, abstention_rate, tabular_grounding_compliance metrics in runner.
-- [ ] Roadmap target: Add lifecycle compliance and freshness compliance metrics after lifecycle controls are implemented.
+- [x] Implemented: Add lifecycle exclusion compliance and confidence/tabular expectation alignment metrics in offline evaluator.
 - [ ] Roadmap target: Add faithfulness_proxy and correctness_proxy metrics or remove references consistently.
 - [ ] Roadmap target: Add dataset sanity checks and malformed-row reporting.
 - [ ] Partial: reset_eval_workspace.py exists for cleanup; extend docs for repeatable test-data cleanup protocol.
