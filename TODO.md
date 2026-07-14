@@ -53,7 +53,7 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Roadmap target: Emit extraction_method metadata for every parser path.
 
 ### 3. Chunking
-- [ ] Implemented: Prose chunking with chunk_size, overlap, min_chunk_words.
+- [X] Implemented: Prose chunking with chunk_size, overlap, min_chunk_words.
 - [ ] Partial: Tabular chunking uses row windows and overlap but assumes first line header.
 - [ ] Roadmap target: Preserve repeated headers explicitly in tabular chunk metadata.
 - [ ] Roadmap target: Formalize overlap policy by chunk type (prose vs tabular) and document defaults.
@@ -62,8 +62,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Roadmap target: Ensure full chunk metadata propagation from ingestion through retrieval output.
 
 ### 4. Retrieval
-- [ ] Implemented: Query expansion from config/synonyms.json.
-- [ ] Implemented: Score threshold and top_k controls in lexical retrieval.
+- [X] Implemented: Query expansion from config/synonyms.json.
+- [X] Implemented: Score threshold and top_k controls in lexical retrieval.
 - [ ] Roadmap target (Foundational): Add TF-IDF retrieval backend with explicit normalization behavior.
 - [ ] Roadmap target (Foundational): Add vector retrieval backend behind configurable adapter boundary.
 - [ ] Design/specification: Similarity metric options beyond current lexical overlap pending vector backend.
@@ -106,8 +106,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Roadmap target: Add evaluation coverage for tabular intent success and abstention correctness.
 
 ### 8. Generation
-- [ ] Implemented: Extractive mode baseline.
-- [ ] Implemented: Mock mode baseline.
+- [X] Implemented: Extractive mode baseline.
+- [X] Implemented: Mock mode baseline.
 - [ ] Partial: Live adapter hook exists as placeholder response.
 - [ ] Future extension: Provider-specific live integration is implementation-owned, not framework-core.
 - [ ] Roadmap target: Define grounded answer contract (allowed synthesis boundaries and citation obligations).
@@ -115,18 +115,18 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Partial: Citation shaping exists in API; generation-citation coupling is shallow.
 
 ### 9. API / Response Contract
-- [ ] Implemented: /api/health and /api/chat endpoints exist.
-- [ ] Implemented: Response envelope includes message, citations_summary, citations, collapsed_citations, answer, confidence.
+- [X] Implemented: /api/health and /api/chat endpoints exist.
+- [X] Implemented: Response envelope includes message, citations_summary, citations, collapsed_citations, answer, confidence.
 - [ ] Partial: Legacy payload compatibility exists in UI normalization path (sources fallback), not fully contract-tested.
 - [ ] Roadmap target: Add explicit contract tests for envelope fields and type stability.
 - [ ] Roadmap target: Add tests for citation summary count semantics and collapsed-citation behavior.
 - [ ] Roadmap target: Version contract changes with documented migration notes when fields evolve.
 
 ### 10. Reference UI
-- [ ] Implemented: Answer-first display with source drawer pattern.
+- [X] Implemented: Answer-first display with source drawer pattern.
 - [ ] Partial: Citation dedup/collapse behavior is split between backend and UI; needs unified policy doc.
-- [ ] Implemented: Feedback placeholder and FAQ template view exist.
-- [ ] Implemented: Theme toggle exists.
+- [X] Implemented: Feedback placeholder and FAQ template view exist.
+- [X] Implemented: Theme toggle exists.
 - [ ] Roadmap target: Document whether FAQ and feedback scaffolds remain template-only or become configurable assets.
 - [ ] Roadmap target: Improve accessibility (keyboard nav, aria review, contrast checks, focus order).
 - [ ] Partial: Implementation-neutral UI guidance exists; add explicit do/don't list for framework vs brand customization.
@@ -141,7 +141,7 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Partial: Offline runner and report generation implemented in scripts/run_eval.py.
 - [ ] Roadmap target: Create canonical, regression, and drift datasets under eval/datasets.
 - [ ] Roadmap target: Add implementation-specific validation datasets and benchmark runners in domain/implementation branches.
-- [ ] Implemented: hit_rate, MRR, context_precision, provenance_completeness, abstention_rate, tabular_grounding_compliance metrics in runner.
+- [X] Implemented: hit_rate, MRR, context_precision, provenance_completeness, abstention_rate, tabular_grounding_compliance metrics in runner.
 - [ ] Roadmap target: Add lifecycle compliance and freshness compliance metrics after lifecycle controls are implemented.
 - [ ] Roadmap target: Add faithfulness_proxy and correctness_proxy metrics or remove references consistently.
 - [ ] Roadmap target: Add dataset sanity checks and malformed-row reporting.
@@ -149,7 +149,7 @@ These items are intentionally tracked outside Immediate Priorities and should be
 
 ### 12. Domain Profiles / NLP Tailoring
 - [ ] Partial: profiles/default.json loads through RagConfig.from_profile.
-- [ ] Implemented: Domain thesaurus support via config/synonyms.json.
+- [X] Implemented: Domain thesaurus support via config/synonyms.json.
 - [ ] Roadmap target: Add profile overlays for retrieval/lifecycle/confidence defaults.
 - [ ] Roadmap target: Add ontology/taxonomy template examples and integration guidance.
 - [ ] Roadmap target: Expand doc_type taxonomy behavior and domain-specific overrides.
@@ -159,8 +159,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 
 ### 13. Docs / Repository Hygiene
 - [ ] Partial: README implementation status and capability matrix are in place.
-- [ ] Implemented: Path consistency fixes for current package layout (scarag/, api_server.py, frontend/, scripts/, docs/).
-- [ ] Implemented: Contributor guide and maintainer checklist exist.
+- [X] Implemented: Path consistency fixes for current package layout (scarag/, api_server.py, frontend/, scripts/, docs/).
+- [X] Implemented: Contributor guide and maintainer checklist exist.
 - [ ] Partial: Architecture docs set now exists (implementation-status, metadata-model, lifecycle-design, retrieval-design, confidence-framework, tabular-grounding).
 - [ ] Roadmap target: Keep README capability statuses synchronized with code changes in every feature PR.
 - [ ] Roadmap target: Add deployment notes with explicit framework-owned vs implementation-owned boundaries.
