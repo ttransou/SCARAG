@@ -12,18 +12,23 @@ This file tracks implementation work needed to reconcile the public framework ba
 
 ## Immediate Priorities
 Dependency order is intentional. Complete top to bottom to unlock downstream work.
+Branch timing and branch-cut dependencies are tracked separately in Branching Gates (Set Aside).
 
 1. [ ] Roadmap target (Foundational): Mature framework-first contracts on main (schema boundaries, lifecycle semantics, confidence inputs, and retrieval interfaces).
-2. [ ] Roadmap target (Foundational): Define explicit branch-cut criteria for when foundational framework work is stable enough to branch.
-3. [ ] Roadmap target (Foundational): Create a framework feature branch only after criteria in #2 are met.
-4. [ ] Roadmap target (Foundational): Define and implement canonical evidence/metadata schema in code and docs on that branch.
-5. [ ] Roadmap target (Foundational): Add lifecycle persistence model (source_unit_id, timestamps, status, soft-delete marks).
-6. [x] Implemented (Foundational): Wire retrieval-side lifecycle/freshness/status filters against persisted state.
-7. [ ] Roadmap target (Foundational): Implement confidence resolver that consumes extraction + lifecycle signals.
-8. [ ] Roadmap target (Foundational): Add TF-IDF/vector retrieval path and hybrid rerank scaffold.
-9. [ ] Roadmap target: Strengthen tabular grounding from intent-only guardrail to matched-row evidence policy.
-10. [ ] Roadmap target: Expand evaluation datasets/metrics to cover new lifecycle/confidence/tabular behavior.
-11. [ ] Roadmap target: Add contract-stability tests for API envelope and citation shaping.
+2. [ ] Roadmap target (Foundational): Define and implement canonical evidence/metadata schema in code and docs.
+3. [ ] Roadmap target (Foundational): Add lifecycle persistence model (source_unit_id, timestamps, status, soft-delete marks).
+4. [x] Implemented (Foundational): Wire retrieval-side lifecycle/freshness/status filters against persisted state.
+5. [ ] Roadmap target (Foundational): Implement confidence resolver that consumes extraction + lifecycle signals.
+6. [ ] Roadmap target (Foundational): Add TF-IDF/vector retrieval path and hybrid rerank scaffold.
+7. [ ] Roadmap target: Strengthen tabular grounding from intent-only guardrail to matched-row evidence policy.
+8. [ ] Roadmap target: Expand evaluation datasets/metrics to cover new lifecycle/confidence/tabular behavior.
+9. [ ] Roadmap target: Add contract-stability tests for API envelope and citation shaping.
+
+## Branching Gates (Set Aside)
+These items are intentionally tracked outside Immediate Priorities and should be evaluated when framework-main milestones are ready.
+
+1. [ ] Roadmap target (Foundational): Define explicit branch-cut criteria for when foundational framework work is stable enough to branch.
+2. [ ] Roadmap target (Foundational): Create a framework feature branch only after criteria in #1 are met.
 
 ## Capability Backlog
 
