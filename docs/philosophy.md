@@ -99,7 +99,7 @@ A successful SCARAG implementation should be able to:
 9. support repeatable offline evaluation before live provider integration;  
 10. evolve toward RAGAS-style, LLM-judged, human-reviewed, or production-observed evaluation as implementation maturity increases.
 
-In practical terms, SCARAG should help teams avoid rebuilding the same fragile RAG pipeline from scratch for every corpus. It should give them a framework that is configurable, auditable, and honest about its boundaries.
+In practical terms, SCARAG should help teams avoid reinventing the same fragile RAG pipeline from scratch for every corpus. It should give them a framework that is configurable, auditable, and honest about its boundaries.
 
 The framework is not trying to replace expert judgment. It is trying to encode the places where expert judgment belongs.
 

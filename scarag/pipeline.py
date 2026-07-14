@@ -3,10 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from scarag.config import RagConfig
+from scarag.lifecycle import LifecycleStateStore
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 
@@ -17,6 +19,109 @@ def _tokenize(text: str) -> list[str]:
 
 def _content_fingerprint(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8", errors="ignore")).hexdigest()
+
+
+def _source_unit_id(source: str) -> str:
+    normalized = str(Path(source)).replace("\\", "/").lower()
+    return f"su_{hashlib.sha1(normalized.encode('utf-8', errors='ignore')).hexdigest()[:16]}"
+
+
+def _parse_iso_ts(value: str | None) -> tuple[datetime | None, bool]:
+    if not value:
+        return None, False
+    try:
+        normalized = value.replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None, True
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC), False
+    return parsed, False
+
+
+def _freshness_filter_reason(record: dict[str, Any], config: RagConfig) -> str | None:
+    if config.freshness_max_age_days is None:
+        return None
+
+    candidate_fields = (
+        ["last_upsert_iso_ts", "ingestion_iso_ts"]
+        if config.freshness_use_last_upsert_first
+        else ["ingestion_iso_ts", "last_upsert_iso_ts"]
+    )
+
+    saw_missing = False
+    saw_invalid = False
+    for field in candidate_fields:
+        raw_value = str(record.get(field) or "").strip()
+        if not raw_value:
+            saw_missing = True
+            continue
+        selected_ts, invalid = _parse_iso_ts(raw_value)
+        if invalid:
+            saw_invalid = True
+            continue
+        if selected_ts is None:
+            saw_missing = True
+            continue
+
+        age = datetime.now(UTC) - selected_ts
+        if age.days > config.freshness_max_age_days:
+            return "freshness_stale"
+        return None
+
+    if saw_invalid and config.freshness_invalid_ts_policy.strip().lower() == "exclude":
+        return "freshness_invalid_timestamp"
+
+    if saw_missing and config.freshness_missing_ts_policy.strip().lower() == "exclude":
+        return "freshness_missing_timestamp"
+
+    return None
+
+
+def _lifecycle_filter_reason(chunk: dict[str, Any], config: RagConfig, store: LifecycleStateStore) -> str | None:
+    source_unit_id = str(chunk.get("source_unit_id", "")).strip()
+    if not source_unit_id:
+        if config.lifecycle_require_persisted_record:
+            return "missing_source_unit_id"
+        return None
+
+    record_obj = store.get(source_unit_id)
+    if record_obj is None:
+        if config.lifecycle_require_persisted_record:
+            return "missing_persisted_record"
+        record = {
+            "status": str(chunk.get("status", "")),
+            "deletion_mark_iso_ts": chunk.get("deletion_mark_iso_ts"),
+            "ingestion_iso_ts": chunk.get("ingestion_iso_ts"),
+            "last_upsert_iso_ts": chunk.get("last_upsert_iso_ts"),
+        }
+    else:
+        record = {
+            "status": record_obj.status,
+            "deletion_mark_iso_ts": record_obj.deletion_mark_iso_ts,
+            "ingestion_iso_ts": record_obj.ingestion_iso_ts,
+            "last_upsert_iso_ts": record_obj.last_upsert_iso_ts,
+        }
+
+    status = str(record.get("status", "")).strip().lower()
+    if config.exclude_soft_deleted and (
+        status == "soft_deleted" or bool(record.get("deletion_mark_iso_ts"))
+    ):
+        return "soft_deleted"
+
+    allow_set = {item.strip().lower() for item in config.status_allow_list if item.strip()}
+    if allow_set and status not in allow_set:
+        return "status_allow_list"
+
+    deny_set = {item.strip().lower() for item in config.status_deny_list if item.strip()}
+    if status in deny_set:
+        return "status_deny_list"
+
+    freshness_reason = _freshness_filter_reason(record, config)
+    if freshness_reason is not None:
+        return freshness_reason
+
+    return None
 
 
 def infer_doc_type(source: str, text: str) -> str:
@@ -127,9 +232,14 @@ def is_tabular_intent(query: str, thesaurus: dict[str, Any]) -> bool:
     return bool(query_terms & tabular_terms)
 
 
-def build_chunk_index(documents: list[dict[str, Any]], config: RagConfig) -> list[dict[str, Any]]:
+def build_chunk_index(
+    documents: list[dict[str, Any]],
+    config: RagConfig,
+    lifecycle_store: LifecycleStateStore | None = None,
+) -> list[dict[str, Any]]:
     chunks: list[dict[str, Any]] = []
     seen_fingerprints: set[str] = set()
+    store = lifecycle_store or LifecycleStateStore(config.lifecycle_state_path)
 
     for document in documents:
         source = str(document.get("source", "unknown"))
@@ -141,6 +251,13 @@ def build_chunk_index(documents: list[dict[str, Any]], config: RagConfig) -> lis
         if fingerprint in seen_fingerprints:
             continue
         seen_fingerprints.add(fingerprint)
+
+        source_unit_id = _source_unit_id(source)
+        lifecycle_record = store.upsert(
+            source_unit_id=source_unit_id,
+            source=source,
+            content_fingerprint=fingerprint,
+        )
 
         doc_type = str(document.get("doc_type") or infer_doc_type(source, text))
         tabular = _looks_tabular(text)
@@ -157,12 +274,17 @@ def build_chunk_index(documents: list[dict[str, Any]], config: RagConfig) -> lis
             chunks.append(
                 {
                     "chunk_id": f"{Path(source).name}:{index}",
+                    "source_unit_id": source_unit_id,
                     "source": source,
                     "text": normalized,
                     "doc_type": doc_type,
                     "domain_area": "unknown",
                     "is_tabular": tabular,
                     "content_fingerprint": _content_fingerprint(normalized),
+                    "ingestion_iso_ts": lifecycle_record.ingestion_iso_ts,
+                    "last_upsert_iso_ts": lifecycle_record.last_upsert_iso_ts,
+                    "deletion_mark_iso_ts": lifecycle_record.deletion_mark_iso_ts,
+                    "status": lifecycle_record.status,
                 }
             )
 
@@ -175,12 +297,53 @@ def retrieve_chunks(
     config: RagConfig,
     thesaurus: dict[str, Any],
 ) -> list[dict[str, Any]]:
+    ranked, _ = retrieve_chunks_with_diagnostics(query, chunks, config, thesaurus)
+    return ranked
+
+
+def retrieve_chunks_with_diagnostics(
+    query: str,
+    chunks: list[dict[str, Any]],
+    config: RagConfig,
+    thesaurus: dict[str, Any],
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
     query_terms = expand_query_terms(query, thesaurus)
     if not query_terms:
-        return []
+        return [], {
+            "candidates": 0,
+            "retained": 0,
+            "filtered_soft_deleted": 0,
+            "filtered_status_allow_list": 0,
+            "filtered_status_deny_list": 0,
+            "filtered_freshness_stale": 0,
+            "filtered_freshness_missing_timestamp": 0,
+            "filtered_freshness_invalid_timestamp": 0,
+            "filtered_missing_source_unit_id": 0,
+            "filtered_missing_persisted_record": 0,
+        }
 
+    lifecycle_store = LifecycleStateStore(config.lifecycle_state_path)
+    diagnostics = {
+        "candidates": 0,
+        "retained": 0,
+        "filtered_soft_deleted": 0,
+        "filtered_status_allow_list": 0,
+        "filtered_status_deny_list": 0,
+        "filtered_freshness_stale": 0,
+        "filtered_freshness_missing_timestamp": 0,
+        "filtered_freshness_invalid_timestamp": 0,
+        "filtered_missing_source_unit_id": 0,
+        "filtered_missing_persisted_record": 0,
+    }
     weighted: list[dict[str, Any]] = []
     for chunk in chunks:
+        diagnostics["candidates"] += 1
+        filter_reason = _lifecycle_filter_reason(chunk, config, lifecycle_store)
+        if filter_reason is not None:
+            key = f"filtered_{filter_reason}"
+            diagnostics[key] = diagnostics.get(key, 0) + 1
+            continue
+
         text_terms = _tokenize(str(chunk.get("text", "")))
         if not text_terms:
             continue
@@ -200,7 +363,9 @@ def retrieve_chunks(
         weighted.append(with_score)
 
     weighted.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
-    return weighted[: config.top_k]
+    retained = weighted[: config.top_k]
+    diagnostics["retained"] = len(retained)
+    return retained, diagnostics
 
 
 def load_thesaurus(config: RagConfig) -> dict[str, Any]:

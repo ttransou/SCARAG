@@ -1,12 +1,13 @@
 # SCARAG Lifecycle Design
 
-This document specifies lifecycle and freshness behavior for reconstruction.
+This document specifies lifecycle and freshness behavior for active framework development.
 
 ## Current Public Baseline
 - basic source metadata propagation on chunks,
-- no persistent lifecycle state store.
+- file-backed lifecycle state store in place (source_unit_id, timestamps, status, soft-delete mark field),
+- lifecycle metadata propagated onto indexed chunks.
 
-## Reconstruction Targets
+## Roadmap Targets
 - persistent re-ingestion state,
 - freshness filtering controls,
 - soft-delete lifecycle markers,
@@ -16,7 +17,7 @@ This document specifies lifecycle and freshness behavior for reconstruction.
 Lifecycle policy should remain implementation-tunable while preserving framework-level evidence governance guarantees.
 
 ## Lifecycle Metadata Model (Target)
-The reconstruction target is a source-unit lifecycle record that supports ingest, update, skip, soft-delete, and retrieval filtering decisions.
+The roadmap target is a source-unit lifecycle record that supports ingest, update, skip, soft-delete, and retrieval filtering decisions.
 
 Recommended lifecycle fields:
 - source_unit_id: stable identity for a source unit across ingest cycles,
@@ -36,6 +37,12 @@ Recommended policy order:
 3. Apply freshness threshold checks using last_upsert_iso_ts, then ingestion_iso_ts fallback.
 4. If timestamp fields are missing or invalid, default policy should be explicit and implementation-configurable.
 
+Current baseline implementation:
+- retrieval-side lifecycle filtering is active by default,
+- status and freshness behavior is tunable via retrieval config,
+- missing/invalid timestamp policy is explicit (include or exclude),
+- lifecycle filter diagnostics counters are available from retrieval diagnostics output.
+
 ## Re-ingestion Behavior (Target)
 Re-ingestion should preserve long-lived identity while refreshing update state.
 
@@ -53,8 +60,19 @@ Lifecycle diagnostics should be inspectable through reports or APIs and should i
 - re-ingestion event counts (created, updated, unchanged-skipped),
 - invalid or missing timestamp counts.
 
-## Reconstruction Milestones
-- M1: add lifecycle metadata fields to chunk records and persisted state.
-- M2: add retrieval-side lifecycle and freshness filters behind explicit config flags.
+Current baseline implementation includes retrieval-time counters for:
+- filtered_soft_deleted,
+- filtered_status_allow_list,
+- filtered_status_deny_list,
+- filtered_freshness_stale,
+- filtered_freshness_missing_timestamp,
+- filtered_freshness_invalid_timestamp,
+- filtered_missing_source_unit_id,
+- filtered_missing_persisted_record.
+
+## Implementation Milestones
+- M1: add lifecycle metadata fields to chunk records and persisted state. (Implemented baseline)
+- M2: add retrieval-side lifecycle and freshness filters behind explicit config flags. (Implemented baseline)
+- M2a: harden lifecycle filtering policy semantics and add diagnostics counters. (Implemented)
 - M3: add soft-delete semantics and lifecycle audit reporting.
 - M4: add compliance tests for freshness/status policy behavior.

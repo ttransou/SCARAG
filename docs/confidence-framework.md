@@ -5,7 +5,7 @@ This document defines confidence assessment design and rollout stages.
 ## Current Public Baseline
 - lightweight confidence signal in API responses: high, low, abstain.
 
-## Reconstruction Targets
+## Roadmap Targets
 - confidence resolver module,
 - extraction-method tiering,
 - domain overlay support,

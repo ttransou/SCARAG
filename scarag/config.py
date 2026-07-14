@@ -19,6 +19,15 @@ class RagConfig:
     cohesion_threshold: float = 0.0
     table_chunk_rows: int = 25
     table_overlap_rows: int = 5
+    lifecycle_state_path: str = "data/.scarag_lifecycle_state.json"
+    exclude_soft_deleted: bool = True
+    status_allow_list: list[str] = field(default_factory=list)
+    status_deny_list: list[str] = field(default_factory=list)
+    freshness_max_age_days: int | None = None
+    freshness_use_last_upsert_first: bool = True
+    freshness_missing_ts_policy: str = "include"
+    freshness_invalid_ts_policy: str = "include"
+    lifecycle_require_persisted_record: bool = False
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @classmethod

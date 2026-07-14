@@ -1,6 +1,6 @@
 # SCARAG Retrieval Design
 
-This document captures retrieval architecture and tuning guidance for reconstruction.
+This document captures retrieval architecture and tuning guidance for active framework development.
 
 ## Current Public Baseline
 - lexical overlap scoring,
@@ -8,7 +8,7 @@ This document captures retrieval architecture and tuning guidance for reconstruc
 - thesaurus-based query expansion,
 - top_k and min_retrieval_score controls.
 
-## Reconstruction Targets
+## Roadmap Targets
 - TF-IDF or vector retrieval backend,
 - hybrid retrieval blending,
 - reranking strategies with diagnostics,

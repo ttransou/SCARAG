@@ -6,7 +6,7 @@ This document defines row-grounded answering rules for tabular intent.
 - tabular intent detection,
 - abstention when tabular intent has no tabular evidence.
 
-## Reconstruction Targets
+## Roadmap Targets
 - matched-row grounding behavior,
 - header and row-window fidelity requirements,
 - schema-style fallback policy controls,
