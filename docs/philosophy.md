@@ -10,9 +10,9 @@ The premise is simple:
 
 **A RAG system cannot be meaningfully grounded unless it understands the structure, status, and semantics of the evidence it retrieves.**
 
-For that reason, SCARAG is schema-centric rather than model-centric. The framework prioritizes explicit metadata, source-unit identity, document type, extraction method, lifecycle timestamps, confidence rules, domain vocabulary, tabular row fidelity, and evidence presentation. The goal is not to make the language model appear more authoritative. The goal is to make the retrieval, evidence, and answer layers accountable for the materials they use.
+For that reason, SCARAG is schema-conscious rather than model-centric. The framework prioritizes explicit metadata, source-unit identity, document type, extraction method, lifecycle timestamps, confidence rules, domain vocabulary, tabular row fidelity, and evidence presentation. The goal is not to make the language model appear more authoritative. The goal is to make the retrieval, evidence, and answer layers accountable for the materials they use.
 
-## **Why “Schema-Centric” Matters**
+## **Why “Schema-Conscious” Matters**
 
 In many RAG systems, schema is treated as a convenience: useful when the source data already has clean fields, optional otherwise. SCARAG treats schema as an interpretive layer.
 
