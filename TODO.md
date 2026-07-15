@@ -54,12 +54,12 @@ These items are intentionally tracked outside Immediate Priorities and should be
 
 ### 3. Chunking
 - [X] Implemented: Prose chunking with chunk_size, overlap, min_chunk_words.
-- [ ] Partial: Tabular chunking uses row windows and overlap but assumes first line header.
-- [ ] Roadmap target: Preserve repeated headers explicitly in tabular chunk metadata.
-- [ ] Roadmap target: Formalize overlap policy by chunk type (prose vs tabular) and document defaults.
-- [ ] Design/specification: Lexical cohesion splitting exists as config concept but is not implemented in chunking logic.
-- [ ] Roadmap target: Preserve source-unit boundaries so chunks can trace to precise source units.
-- [ ] Roadmap target: Ensure full chunk metadata propagation from ingestion through retrieval output.
+- [x] Implemented (baseline): Tabular chunking uses row windows/overlap with metadata-aware header sectioning and no-header row preservation.
+- [x] Implemented (baseline): Preserve repeated headers explicitly in tabular chunk metadata.
+- [x] Implemented (baseline): Formalize overlap policy by chunk type (prose vs tabular) and document defaults.
+- [x] Implemented (baseline): Lexical cohesion splitting is implemented via configurable cohesion_threshold source-unit segmentation.
+- [x] Implemented (baseline): Preserve source-unit boundaries so chunks can trace to precise source units.
+- [x] Implemented (baseline): Ensure full chunk metadata propagation from ingestion through retrieval output.
 
 ### 4. Retrieval
 - [X] Implemented: Query expansion from config/synonyms.json.

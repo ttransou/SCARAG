@@ -45,6 +45,13 @@ class EvidenceMetadata:
     deletion_mark_iso_ts: str | None
     status: str
     confidence_inputs: dict[str, Any]
+    tabular_chunk_metadata: dict[str, Any] | None = None
+    prose_chunk_metadata: dict[str, Any] | None = None
+    source_unit_local_id: str | None = None
+    source_unit_kind: str | None = None
+    source_unit_boundary: dict[str, Any] | None = None
+    table_metadata: list[dict[str, Any]] | None = None
+    image_markers: list[dict[str, Any]] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -63,6 +70,13 @@ class EvidenceMetadata:
             "deletion_mark_iso_ts": self.deletion_mark_iso_ts,
             "status": self.status,
             "confidence_inputs": self.confidence_inputs,
+            "tabular_chunk_metadata": self.tabular_chunk_metadata,
+            "prose_chunk_metadata": self.prose_chunk_metadata,
+            "source_unit_local_id": self.source_unit_local_id,
+            "source_unit_kind": self.source_unit_kind,
+            "source_unit_boundary": self.source_unit_boundary,
+            "table_metadata": self.table_metadata,
+            "image_markers": self.image_markers,
         }
 
 

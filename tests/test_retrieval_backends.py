@@ -78,3 +78,43 @@ def test_retrieve_chunks_with_diagnostics_respects_backend_selection(tmp_path: P
     assert ranked
     assert diagnostics["candidates"] >= 1
     assert diagnostics["retained"] >= 1
+
+
+def test_retrieval_preserves_chunk_metadata_fields(tmp_path: Path) -> None:
+    config = RagConfig(
+        lifecycle_state_path=str(tmp_path / "lifecycle-state.json"),
+        retrieval_backend="lexical",
+        min_retrieval_score=0.0,
+    )
+    docs = [
+        {
+            "source": str(tmp_path / "table.docx"),
+            "text": "Name | Value\nAlpha | 1\nName | Value\nBeta | 2",
+            "doc_type": "report",
+            "table_metadata": [
+                {
+                    "table_id": "docx_table_0",
+                    "row_count": 2,
+                    "column_count": 2,
+                    "header_fields": ["Name", "Value"],
+                }
+            ],
+            "image_markers": [{"marker_id": "img_0", "content_type": "image"}],
+        }
+    ]
+    chunks = build_chunk_index(docs, config)
+
+    response = retrieve_via_interface(
+        "alpha value",
+        chunks,
+        config,
+        {"terms": {}, "intent_groups": {}},
+    )
+
+    assert response.ranked_chunks
+    first = response.ranked_chunks[0]
+    assert first.get("tabular_chunk_metadata") is not None
+    assert first.get("source_unit_local_id")
+    assert first.get("source_unit_kind") == "tabular_section"
+    assert isinstance(first.get("table_metadata"), list)
+    assert isinstance(first.get("image_markers"), list)

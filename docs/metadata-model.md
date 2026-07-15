@@ -25,6 +25,36 @@ Required fields on every chunk/evidence unit:
 - status
 - confidence_inputs
 
+Optional chunk metadata fields:
+- tabular_chunk_metadata (present for tabular chunks)
+- prose_chunk_metadata (present for prose chunks)
+- source_unit_local_id
+- source_unit_kind
+- source_unit_boundary
+- table_metadata (propagated from ingestion when available)
+- image_markers (propagated from ingestion when available)
+
+Current tabular_chunk_metadata baseline:
+- section_index
+- has_header
+- header_text
+- header_source
+- header_repeat_index
+- header_repeat_count
+- row_start_index
+- row_end_index
+- window_row_count
+- overlap_rows
+
+Current prose_chunk_metadata baseline:
+- chunk_start_word_index
+- chunk_end_word_index
+- chunk_word_count
+- overlap_words
+- absolute_chunk_start_word_index
+- absolute_chunk_end_word_index
+- cohesion_split_applied
+
 ## Confidence Input Contract (Implemented Baseline)
 Current confidence input payload on evidence units:
 - base_extraction_tier

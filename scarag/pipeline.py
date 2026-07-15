@@ -15,6 +15,8 @@ from scarag.metadata import EvidenceMetadata, build_confidence_inputs, utc_now_i
 from scarag.retrieval.interfaces import RetrievalRequest, RetrievalResponse, Retriever
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+_TABULAR_SPLIT_RE = re.compile(r"\s*\|\s*|\s*,\s*")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
 
 def _tokenize(text: str) -> list[str]:
@@ -154,45 +156,320 @@ def _looks_tabular(text: str) -> bool:
     return pipe_lines >= 2 or comma_lines >= 2
 
 
-def _chunk_prose(text: str, chunk_size: int, overlap: int, min_chunk_words: int) -> list[str]:
+def _normalize_window_policy(window_size: int, overlap: int, *, min_window_size: int) -> tuple[int, int, int]:
+    safe_window_size = max(min_window_size, window_size)
+    safe_overlap = max(0, min(overlap, safe_window_size - 1))
+    step = max(1, safe_window_size - safe_overlap)
+    return safe_window_size, safe_overlap, step
+
+
+def _token_overlap(left: str, right: str) -> float:
+    left_terms = set(_tokenize(left))
+    right_terms = set(_tokenize(right))
+    if not left_terms or not right_terms:
+        return 0.0
+    intersection = len(left_terms & right_terms)
+    union = len(left_terms | right_terms)
+    return 0.0 if union == 0 else intersection / union
+
+
+def _split_sentences(text: str) -> list[str]:
+    parts = [part.strip() for part in _SENTENCE_SPLIT_RE.split(text.strip()) if part.strip()]
+    return parts if parts else ([text.strip()] if text.strip() else [])
+
+
+def _split_prose_source_units(text: str, cohesion_threshold: float) -> list[dict[str, Any]]:
+    paragraphs = [part.strip() for part in re.split(r"\n\s*\n+", text) if part.strip()]
+    if not paragraphs:
+        return []
+
+    units: list[dict[str, Any]] = []
+    unit_index = 0
+    cumulative_word_index = 1
+
+    for paragraph in paragraphs:
+        paragraph_units: list[str] = []
+        cohesion_applied = False
+
+        if cohesion_threshold > 0:
+            sentences = _split_sentences(paragraph)
+            if len(sentences) > 1:
+                current = [sentences[0]]
+                current_context = sentences[0]
+                for sentence in sentences[1:]:
+                    if _token_overlap(current_context, sentence) < cohesion_threshold:
+                        paragraph_units.append(" ".join(current).strip())
+                        current = [sentence]
+                        current_context = sentence
+                        cohesion_applied = True
+                        continue
+
+                    current.append(sentence)
+                    current_context = f"{current_context} {sentence}".strip()
+
+                if current:
+                    paragraph_units.append(" ".join(current).strip())
+
+        if not paragraph_units:
+            paragraph_units = [paragraph]
+
+        for unit_text in paragraph_units:
+            word_count = len(unit_text.split())
+            if word_count == 0:
+                continue
+            units.append(
+                {
+                    "source_unit_index": unit_index,
+                    "text": unit_text,
+                    "unit_start_word_index": cumulative_word_index,
+                    "unit_end_word_index": cumulative_word_index + word_count - 1,
+                    "unit_word_count": word_count,
+                    "cohesion_split_applied": cohesion_applied,
+                }
+            )
+            cumulative_word_index += word_count
+            unit_index += 1
+
+    return units
+
+
+def _split_tabular_cells(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped:
+        return []
+    if "|" in stripped or "," in stripped:
+        return [cell.strip() for cell in _TABULAR_SPLIT_RE.split(stripped) if cell.strip()]
+    return [stripped]
+
+
+def _normalized_tabular_line(line: str) -> str:
+    cells = _split_tabular_cells(line)
+    if len(cells) < 2:
+        return line.strip().lower()
+    return " | ".join(cells).lower()
+
+
+def _is_likely_header_row(line: str) -> bool:
+    cells = _split_tabular_cells(line)
+    if len(cells) < 2:
+        return False
+
+    alpha_cells = sum(1 for cell in cells if any(char.isalpha() for char in cell))
+    numeric_like_cells = sum(
+        1
+        for cell in cells
+        if cell.replace(".", "", 1).isdigit() or cell.replace("-", "", 1).isdigit()
+    )
+    # Treat rows with numeric-like cells as data rows; inferred headers should be label-only.
+    return alpha_cells >= max(1, len(cells) // 2) and numeric_like_cells == 0
+
+
+def _header_candidates_from_metadata(table_metadata: Any) -> set[str]:
+    if not isinstance(table_metadata, list):
+        return set()
+
+    candidates: set[str] = set()
+    for record in table_metadata:
+        if not isinstance(record, dict):
+            continue
+        fields = record.get("header_fields")
+        if not isinstance(fields, list):
+            continue
+        cleaned = [str(field).strip() for field in fields if str(field).strip()]
+        if len(cleaned) < 2:
+            continue
+        candidates.add(_normalized_tabular_line(" | ".join(cleaned)))
+    return candidates
+
+
+def _tabular_sections(text: str, table_metadata: Any) -> list[dict[str, Any]]:
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    known_headers = _header_candidates_from_metadata(table_metadata)
+    if known_headers:
+        header_indexes = [
+            index
+            for index, line in enumerate(lines)
+            if _normalized_tabular_line(line) in known_headers
+        ]
+        if header_indexes:
+            sections: list[dict[str, Any]] = []
+            normalized_headers = [_normalized_tabular_line(lines[index]) for index in header_indexes]
+            header_counts = Counter(normalized_headers)
+            seen_headers: Counter[str] = Counter()
+            for position, start in enumerate(header_indexes):
+                end = header_indexes[position + 1] if position + 1 < len(header_indexes) else len(lines)
+                header = lines[start]
+                rows = lines[start + 1 : end]
+                if rows:
+                    normalized_header = _normalized_tabular_line(header)
+                    seen_headers[normalized_header] += 1
+                    sections.append(
+                        {
+                            "header": header,
+                            "rows": rows,
+                            "section_index": position,
+                            "header_source": "table_metadata",
+                            "header_repeat_index": seen_headers[normalized_header],
+                            "header_repeat_count": header_counts[normalized_header],
+                            "section_row_count": len(rows),
+                        }
+                    )
+            if sections:
+                return sections
+
+    inferred_header: str | None = None
+    if len(lines) >= 2 and _is_likely_header_row(lines[0]):
+        inferred_header = lines[0]
+        rows = lines[1:]
+    else:
+        rows = lines
+
+    if not rows:
+        return []
+    return [
+        {
+            "header": inferred_header,
+            "rows": rows,
+            "section_index": 0,
+            "header_source": "inferred" if inferred_header else "none",
+            "header_repeat_index": 1 if inferred_header else 0,
+            "header_repeat_count": 1 if inferred_header else 0,
+            "section_row_count": len(rows),
+        }
+    ]
+
+
+def _chunk_prose_with_metadata(
+    text: str,
+    chunk_size: int,
+    overlap: int,
+    min_chunk_words: int,
+) -> list[tuple[str, dict[str, int]]]:
     words = text.split()
     if not words:
         return []
 
-    safe_chunk_size = max(chunk_size, 20)
-    safe_overlap = max(0, min(overlap, safe_chunk_size - 1))
-    step = max(1, safe_chunk_size - safe_overlap)
+    safe_chunk_size, safe_overlap, step = _normalize_window_policy(
+        chunk_size,
+        overlap,
+        min_window_size=20,
+    )
 
-    chunks: list[str] = []
+    chunks: list[tuple[str, dict[str, int]]] = []
     for start in range(0, len(words), step):
         candidate = words[start : start + safe_chunk_size]
         if not candidate:
             continue
         if len(candidate) < min_chunk_words and chunks:
-            chunks[-1] = f"{chunks[-1]} {' '.join(candidate)}".strip()
+            existing_text, existing_meta = chunks[-1]
+            merged_words = existing_text.split() + candidate
+            chunks[-1] = (
+                " ".join(merged_words).strip(),
+                {
+                    "chunk_start_word_index": int(existing_meta.get("chunk_start_word_index", 1)),
+                    "chunk_end_word_index": start + len(candidate),
+                    "chunk_word_count": len(merged_words),
+                    "overlap_words": safe_overlap,
+                },
+            )
             continue
-        chunks.append(" ".join(candidate))
+        chunks.append(
+            (
+                " ".join(candidate),
+                {
+                    "chunk_start_word_index": start + 1,
+                    "chunk_end_word_index": start + len(candidate),
+                    "chunk_word_count": len(candidate),
+                    "overlap_words": safe_overlap,
+                },
+            )
+        )
 
     return chunks
 
 
-def _chunk_tabular(text: str, table_chunk_rows: int, table_overlap_rows: int) -> list[str]:
-    lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if len(lines) <= 1:
-        return [text.strip()] if text.strip() else []
+def _chunk_prose(text: str, chunk_size: int, overlap: int, min_chunk_words: int) -> list[str]:
+    return [
+        chunk_text
+        for chunk_text, _chunk_meta in _chunk_prose_with_metadata(text, chunk_size, overlap, min_chunk_words)
+    ]
 
-    header = lines[0]
-    rows = lines[1:]
-    safe_rows = max(1, table_chunk_rows)
-    safe_overlap = max(0, min(table_overlap_rows, safe_rows - 1))
-    step = max(1, safe_rows - safe_overlap)
 
-    chunks: list[str] = []
-    for start in range(0, len(rows), step):
-        window = rows[start : start + safe_rows]
-        if not window:
-            continue
-        chunks.append("\n".join([header, *window]))
+def _chunk_tabular(
+    text: str,
+    table_chunk_rows: int,
+    table_overlap_rows: int,
+    table_metadata: Any = None,
+) -> list[tuple[str, dict[str, Any]]]:
+    sections = _tabular_sections(text, table_metadata)
+    if not sections:
+        normalized = text.strip()
+        if not normalized:
+            return []
+        return [
+            (
+                normalized,
+                {
+                    "section_index": 0,
+                    "has_header": False,
+                    "header_text": None,
+                    "header_source": "none",
+                    "header_repeat_index": 0,
+                    "header_repeat_count": 0,
+                    "row_start_index": 1,
+                    "row_end_index": len([line for line in normalized.splitlines() if line.strip()]),
+                    "window_row_count": len([line for line in normalized.splitlines() if line.strip()]),
+                    "overlap_rows": 0,
+                },
+            )
+        ]
+
+    safe_rows, safe_overlap, step = _normalize_window_policy(
+        table_chunk_rows,
+        table_overlap_rows,
+        min_window_size=1,
+    )
+
+    chunks: list[tuple[str, dict[str, Any]]] = []
+    for section in sections:
+        header = section.get("header")
+        rows = list(section.get("rows", []))
+        section_index = int(section.get("section_index", 0))
+        header_source = str(section.get("header_source", "none"))
+        header_repeat_index = int(section.get("header_repeat_index", 0))
+        header_repeat_count = int(section.get("header_repeat_count", 0))
+        section_row_count = int(section.get("section_row_count", len(rows)))
+
+        for start in range(0, len(rows), step):
+            window = rows[start : start + safe_rows]
+            if not window:
+                continue
+            if start > 0 and len(window) <= safe_overlap:
+                continue
+            if header:
+                chunk_text = "\n".join([str(header), *window])
+            else:
+                chunk_text = "\n".join(window)
+
+            row_start = start + 1
+            row_end = start + len(window)
+            chunk_meta = {
+                "section_index": section_index,
+                "has_header": bool(header),
+                "header_text": str(header) if header else None,
+                "header_source": header_source,
+                "header_repeat_index": header_repeat_index,
+                "header_repeat_count": header_repeat_count,
+                "section_row_count": section_row_count,
+                "row_start_index": row_start,
+                "row_end_index": row_end,
+                "window_row_count": len(window),
+                "overlap_rows": safe_overlap,
+            }
+            chunks.append((chunk_text, chunk_meta))
     return chunks
 
 
@@ -267,14 +544,73 @@ def build_chunk_index(
         extraction_ts = str(document.get("extraction_ts") or utc_now_iso())
 
         doc_type = str(document.get("doc_type") or infer_doc_type(source, text))
-        tabular = _looks_tabular(text)
-        raw_chunks = (
-            _chunk_tabular(text, config.table_chunk_rows, config.table_overlap_rows)
-            if tabular
-            else _chunk_prose(text, config.chunk_size, config.overlap, config.min_chunk_words)
-        )
+        table_metadata = document.get("table_metadata")
+        image_markers = document.get("image_markers")
+        tabular = bool(table_metadata) or _looks_tabular(text)
+        if tabular:
+            raw_tabular_chunks = _chunk_tabular(
+                text,
+                config.table_chunk_rows,
+                config.table_overlap_rows,
+                table_metadata,
+            )
+            chunk_records = [
+                {
+                    "text": chunk_text,
+                    "tabular_chunk_metadata": chunk_meta,
+                    "prose_chunk_metadata": None,
+                    "source_unit_kind": "tabular_section",
+                    "source_unit_local_id": f"{source_unit_id}:table:{int(chunk_meta.get('section_index', 0))}",
+                    "source_unit_boundary": {
+                        "unit_start_row_index": 1,
+                        "unit_end_row_index": int(chunk_meta.get("section_row_count", 0)),
+                    },
+                }
+                for chunk_text, chunk_meta in raw_tabular_chunks
+            ]
+        else:
+            prose_units = _split_prose_source_units(text, float(config.cohesion_threshold))
+            chunk_records = []
+            for prose_unit in prose_units:
+                unit_text = str(prose_unit.get("text", ""))
+                unit_start = int(prose_unit.get("unit_start_word_index", 1))
+                unit_end = int(prose_unit.get("unit_end_word_index", unit_start))
+                unit_index = int(prose_unit.get("source_unit_index", 0))
 
-        for index, chunk_text in enumerate(raw_chunks):
+                for chunk_text, chunk_meta in _chunk_prose_with_metadata(
+                    unit_text,
+                    config.chunk_size,
+                    config.overlap,
+                    config.min_chunk_words,
+                ):
+                    rel_start = int(chunk_meta.get("chunk_start_word_index", 1))
+                    rel_end = int(chunk_meta.get("chunk_end_word_index", rel_start))
+                    abs_start = unit_start + rel_start - 1
+                    abs_end = unit_start + rel_end - 1
+                    chunk_records.append(
+                        {
+                            "text": chunk_text,
+                            "tabular_chunk_metadata": None,
+                            "prose_chunk_metadata": {
+                                "chunk_start_word_index": rel_start,
+                                "chunk_end_word_index": rel_end,
+                                "chunk_word_count": int(chunk_meta.get("chunk_word_count", 0)),
+                                "overlap_words": int(chunk_meta.get("overlap_words", 0)),
+                                "absolute_chunk_start_word_index": abs_start,
+                                "absolute_chunk_end_word_index": abs_end,
+                                "cohesion_split_applied": bool(prose_unit.get("cohesion_split_applied", False)),
+                            },
+                            "source_unit_kind": "prose",
+                            "source_unit_local_id": f"{source_unit_id}:prose:{unit_index}",
+                            "source_unit_boundary": {
+                                "unit_start_word_index": unit_start,
+                                "unit_end_word_index": unit_end,
+                            },
+                        }
+                    )
+
+        for index, chunk_record in enumerate(chunk_records):
+            chunk_text = str(chunk_record.get("text", ""))
             normalized = chunk_text.strip()
             if not normalized:
                 continue
@@ -301,6 +637,13 @@ def build_chunk_index(
                 deletion_mark_iso_ts=lifecycle_record.deletion_mark_iso_ts,
                 status=lifecycle_record.status,
                 confidence_inputs=confidence_inputs,
+                tabular_chunk_metadata=chunk_record.get("tabular_chunk_metadata"),
+                prose_chunk_metadata=chunk_record.get("prose_chunk_metadata"),
+                source_unit_local_id=chunk_record.get("source_unit_local_id"),
+                source_unit_kind=chunk_record.get("source_unit_kind"),
+                source_unit_boundary=chunk_record.get("source_unit_boundary"),
+                table_metadata=table_metadata if isinstance(table_metadata, list) else None,
+                image_markers=image_markers if isinstance(image_markers, list) else None,
             )
             chunks.append(metadata.to_dict())
 

@@ -3,7 +3,7 @@ Schema-Conscious Agnostic RAG (Retrieval-Augmented Generation)
 
 **Metadata-first RAG for any domain, and supported format**
 
-T. Transou - June 2026 - Active Development
+T. Transou - June 2026 - Active Development 🚧
 
 ## One-Sentence Claim
 SCARAG is a metadata-first RAG framework for building document-grounded systems where provenance, lifecycle, confidence, and domain semantics are first-class concerns.
@@ -90,8 +90,8 @@ graph LR
 |---|---|---|---|
 | multi-format ingestion | Implemented (baseline) | scarag/ingestion/loader.py handles txt, md, recursive-json flattening, csv, html/htm, nested multipart mhtml/mht, pdf, docx, pptx, xlsx/xls with extraction metadata | Expand parser diagnostics and domain-specific extraction policies |
 | document type inference | Implemented | scarag/pipeline.py infer_doc_type | Expand taxonomy and profile-driven typing |
-| prose chunking | Implemented | scarag/pipeline.py _chunk_prose | Add cohesion-aware splitting and policy-tuned chunking |
-| tabular chunking | Partial | scarag/pipeline.py _looks_tabular + _chunk_tabular row windows | Improve table detection and row/header fidelity across formats |
+| prose chunking | Implemented (baseline) | scarag/pipeline.py prose source-unit segmentation + _chunk_prose windowing | Tune cohesion thresholds and domain-specific segmentation policies |
+| tabular chunking | Partial | scarag/pipeline.py _looks_tabular + _chunk_tabular metadata-aware row windows/header sectioning with repeated-header chunk metadata | Improve table detection and row/header fidelity across formats |
 | metadata propagation | Implemented (baseline) | canonical evidence fields include source, chunk_id, source_unit_id, extraction and lifecycle metadata, confidence inputs, table metadata, and image markers where available | Extend with richer parser diagnostics and confidence debug traces |
 | provenance/citations | Implemented (baseline) | api_server.py citation envelope, provenance completeness validator, and frontend evidence drawer | Add citation quality checks (snippet adequacy, duplicate policy, source traceability depth) |
 | thesaurus/query expansion | Implemented | config/synonyms.json + scarag/pipeline.py expand_query_terms | Add profile overlays, governance for term drift, and diagnostics |
@@ -148,13 +148,15 @@ Roadmap targets:
 ### Chunking - Status: Partial
 Current implementation baseline:
 - Creates prose chunks with chunk size, overlap, and minimum word controls.
-- Detects table-like content heuristically and chunks by row windows.
+- Applies configurable lexical cohesion splitting to create prose source units before chunking.
+- Detects table-like content heuristically and chunks by row windows with metadata-aware header sectioning.
+- Preserves repeated header occurrences and row-window bounds in per-chunk tabular metadata.
+- Applies chunk-type overlap policy with normalized defaults: prose min chunk size 20 words with overlap clamped below chunk size, tabular min 1 row with overlap clamped below window size.
+- Preserves source-unit boundaries in chunk metadata and propagates chunk/ingestion metadata through retrieval outputs.
 - Suppresses duplicate full-document fingerprints during indexing.
 
 Roadmap targets:
-- preserve repeated headers explicitly in tabular metadata,
-- formalize overlap policy by chunk type,
-- preserve source-unit boundaries more strictly through chunk surfaces.
+- tune cohesion thresholds and segmentation policy by domain profile.
 
 ### Schema-Conscious Retrieval and Metadata-First Scoring - Status: Implemented (baseline) / Partial
 Current implementation baseline:
