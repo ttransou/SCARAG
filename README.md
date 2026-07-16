@@ -95,12 +95,12 @@ graph LR
 | metadata propagation | Implemented (baseline) | canonical evidence fields include source, chunk_id, source_unit_id, extraction and lifecycle metadata, confidence inputs, table metadata, and image markers where available | Extend with richer parser diagnostics and confidence debug traces |
 | provenance/citations | Implemented (baseline) | api_server.py citation envelope, provenance completeness validator, and frontend evidence drawer | Add citation quality checks (snippet adequacy, duplicate policy, source traceability depth) |
 | thesaurus/query expansion | Implemented | config/synonyms.json + scarag/pipeline.py expand_query_terms | Add profile overlays, governance for term drift, and diagnostics |
-| lexical retrieval | Implemented | scarag/pipeline.py retrieve_chunks token overlap + doc_type weighting | Tune weights and add calibration tooling |
-| vector or TF-IDF retrieval | Implemented (baseline) / Partial | TF-IDF backend implemented with cosine normalization; vector backend not implemented | Add vector backend and calibration path |
+| lexical retrieval | Implemented (baseline) | scarag/pipeline.py retrieve_chunks with configurable lexical similarity metrics and configurable metadata weighting rules | Tune weights and add calibration tooling |
+| vector or TF-IDF retrieval | Implemented (baseline) | TF-IDF backend implemented with cosine normalization; vector backend implemented via configurable embedding adapter and vector similarity metric selector | Add calibration path and domain tuning |
 | hybrid reranking | Implemented (baseline) | lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interface | Expand diagnostics and semantic blending policies |
-| confidence resolver | Implemented (baseline) | resolver consumes extraction tier + lifecycle signal + retrieval strength + evidence coverage and emits high/low/abstain | Add profile/domain overlays, temporal decay, and richer debug traces |
-| lifecycle/freshness controls | Implemented (baseline) | persistent lifecycle state, freshness filtering, status filters, and diagnostics in retrieval | Add lifecycle audit reporting utilities |
-| soft delete/re-ingestion state | Implemented (baseline) | file-backed state store with source_unit_id, ingestion/upsert timestamps, status, and soft-delete marks | Add audit timeline tooling and skip-unchanged reporting |
+| confidence resolver | Implemented (baseline) | resolver consumes extraction tier + lifecycle signal + retrieval strength + evidence coverage, applies configurable temporal decay, applies framework-level intent alignment boosts/penalties, and emits high/low/abstain | Add profile/domain overlays and richer debug traces |
+| lifecycle/freshness controls | Implemented (baseline) | persistent lifecycle state, freshness filtering, status filters, retrieval diagnostics, and lifecycle audit reporting utility (`scripts/lifecycle_audit_report.py`) | Expand API surfacing for lifecycle diagnostics |
+| soft delete/re-ingestion state | Implemented (baseline) | file-backed state store with source_unit_id, ingestion/upsert timestamps, status, soft-delete marks, skip-unchanged auditing, and hard purge utility (`scripts/lifecycle_cleanup.py`) | Add timeline visualization and retention-policy helpers |
 | tabular grounding | Implemented (baseline) | tabular intent detection, abstention when tabular evidence is absent, strict matched-row grounding and trace output | Define schema-style fallback policy and PDF-table guardrails for advanced cases |
 | generation modes | Partial | extractive, mock, live placeholder in scarag/generation/answerer.py | Add provider adapters and stronger grounding-aware generation contracts |
 | citation response contract | Implemented | docs/reference-ui-contract.md and api_server.py response fields | Expand contract tests and richer citation metadata |
@@ -161,14 +161,17 @@ Roadmap targets:
 ### Schema-Conscious Retrieval and Metadata-First Scoring - Status: Implemented (baseline) / Partial
 Current implementation baseline:
 - Query expansion from config/synonyms.json.
-- Lexical overlap retrieval with doc_type-aware weighting.
+- Lexical retrieval with configurable similarity metrics (overlap, jaccard, containment) and configurable metadata weighting rules.
+- Persisted repeated-boilerplate signals with configurable boilerplate penalty factors during ranking.
+- Table-aware boosting tied to tabular intent and row/header matches.
 - TF-IDF backend with cosine normalization.
+- Vector backend with configurable embedding adapter boundary (default hashing embedder) and vector similarity metric options (cosine, dot, euclidean).
 - Hybrid lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interfaces.
 - top_k and minimum retrieval score controls.
+- Retrieval diagnostics output mode for query terms, candidate pruning counters, and final rank explanations.
 
 Roadmap targets:
-- vector backend behind adapter boundary,
-- richer retrieval diagnostics and calibration tooling.
+- calibration tooling and richer domain profiling for retrieval behavior.
 
 ### Provenance and Evidence Presentation - Status: Implemented (baseline)
 Current implementation baseline:
@@ -195,7 +198,7 @@ Current implementation baseline:
 - API exposes confidence signal (high, low, abstain) produced by a resolver using extraction/lifecycle/retrieval inputs.
 
 Roadmap targets:
-- domain overlays, temporal decay, and richer confidence debug traces.
+- domain overlays and richer confidence debug traces.
 
 ### Domain Profiles and Ontology/Taxonomy Tailoring - Status: Partial
 Current implementation baseline:

@@ -52,6 +52,7 @@ class EvidenceMetadata:
     source_unit_boundary: dict[str, Any] | None = None
     table_metadata: list[dict[str, Any]] | None = None
     image_markers: list[dict[str, Any]] | None = None
+    boilerplate_signal: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -77,6 +78,7 @@ class EvidenceMetadata:
             "source_unit_boundary": self.source_unit_boundary,
             "table_metadata": self.table_metadata,
             "image_markers": self.image_markers,
+            "boilerplate_signal": self.boilerplate_signal,
         }
 
 

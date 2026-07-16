@@ -190,6 +190,14 @@ def main() -> None:
             query,
             answer_context,
             tabular_intent=tabular_query,
+            thesaurus=thesaurus,
+            temporal_decay_enabled=config.confidence_temporal_decay_enabled,
+            temporal_decay_half_life_days=config.confidence_temporal_decay_half_life_days,
+            temporal_decay_floor=config.confidence_temporal_decay_floor,
+            intent_adjustment_enabled=config.confidence_intent_adjustment_enabled,
+            intent_match_boost=config.confidence_intent_match_boost,
+            intent_mismatch_penalty=config.confidence_intent_mismatch_penalty,
+            intent_adjustment_floor=config.confidence_intent_adjustment_floor,
         )
 
         relevant_positions: list[int] = []

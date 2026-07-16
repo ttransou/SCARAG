@@ -13,6 +13,7 @@ from scarag.config import RagConfig
 from scarag.lifecycle import LifecycleStateStore
 from scarag.metadata import EvidenceMetadata, build_confidence_inputs, utc_now_iso
 from scarag.retrieval.interfaces import RetrievalRequest, RetrievalResponse, Retriever
+from scarag.retrieval.vector_backend import HashingVectorEmbedder, VectorEmbedder, cosine_similarity
 
 _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 _TABULAR_SPLIT_RE = re.compile(r"\s*\|\s*|\s*,\s*")
@@ -25,6 +26,11 @@ def _tokenize(text: str) -> list[str]:
 
 def _content_fingerprint(text: str) -> str:
     return hashlib.sha1(text.encode("utf-8", errors="ignore")).hexdigest()
+
+
+def _boilerplate_signal_key(text: str) -> str:
+    collapsed = re.sub(r"\s+", " ", str(text).strip().lower())
+    return _content_fingerprint(collapsed)
 
 
 def _source_unit_id(source: str) -> str:
@@ -520,7 +526,11 @@ def build_chunk_index(
 ) -> list[dict[str, Any]]:
     chunks: list[dict[str, Any]] = []
     seen_fingerprints: set[str] = set()
-    store = lifecycle_store or LifecycleStateStore(config.lifecycle_state_path)
+    store = lifecycle_store or LifecycleStateStore(
+        config.lifecycle_state_path,
+        audit_log_path=config.lifecycle_audit_log_path,
+        audit_logging_enabled=config.lifecycle_audit_logging_enabled,
+    )
 
     for document in documents:
         source = str(document.get("source", "unknown"))
@@ -534,11 +544,14 @@ def build_chunk_index(
         seen_fingerprints.add(fingerprint)
 
         source_unit_id = _source_unit_id(source)
-        lifecycle_record = store.upsert(
+        lifecycle_record, lifecycle_action = store.upsert_with_policy(
             source_unit_id=source_unit_id,
             source=source,
             content_fingerprint=fingerprint,
+            skip_unchanged=config.lifecycle_skip_unchanged,
         )
+        if lifecycle_action == "unchanged_skipped":
+            continue
 
         extraction_method = str(document.get("extraction_method") or "text_file_parser")
         extraction_ts = str(document.get("extraction_ts") or utc_now_iso())
@@ -647,6 +660,18 @@ def build_chunk_index(
             )
             chunks.append(metadata.to_dict())
 
+    if chunks:
+        frequency: Counter[str] = Counter(
+            _boilerplate_signal_key(str(chunk.get("text", ""))) for chunk in chunks
+        )
+        for chunk in chunks:
+            key = _boilerplate_signal_key(str(chunk.get("text", "")))
+            repeat_count = int(frequency.get(key, 1))
+            chunk["boilerplate_signal"] = {
+                "repeat_count": repeat_count,
+                "is_repeated": repeat_count > 1,
+            }
+
     return chunks
 
 
@@ -660,7 +685,7 @@ def retrieve_chunks(
     return response.ranked_chunks
 
 
-def _empty_diagnostics() -> dict[str, int]:
+def _empty_diagnostics() -> dict[str, Any]:
     return {
         "candidates": 0,
         "retained": 0,
@@ -679,7 +704,7 @@ def _apply_lifecycle_filters(
     chunks: list[dict[str, Any]],
     config: RagConfig,
     lifecycle_store: LifecycleStateStore,
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     diagnostics = _empty_diagnostics()
     candidates: list[dict[str, Any]] = []
 
@@ -699,6 +724,8 @@ def _score_lexical(
     query_terms: set[str],
     candidates: list[dict[str, Any]],
     config: RagConfig,
+    *,
+    tabular_intent: bool,
 ) -> list[dict[str, Any]]:
     weighted: list[dict[str, Any]] = []
     if not query_terms:
@@ -709,28 +736,200 @@ def _score_lexical(
         if not text_terms:
             continue
 
-        overlap_count = sum(1 for token in text_terms if token in query_terms)
-        overlap_score = overlap_count / max(1, len(query_terms))
+        overlap_score = _lexical_similarity(query_terms, text_terms, config.lexical_similarity_metric)
 
-        doc_type = str(chunk.get("doc_type", "unknown")).lower()
-        doc_weight = 1.1 if doc_type in {"policy", "procedure", "report", "faq"} else 1.0
-        final_score = overlap_score * doc_weight
+        metadata_weight = _metadata_weight(chunk, config)
+        boilerplate_penalty = _boilerplate_penalty_factor(chunk, config)
+        table_boost = _table_boost_factor(
+            query_terms,
+            chunk,
+            tabular_intent=tabular_intent,
+            config=config,
+        )
+        final_score = overlap_score * metadata_weight * boilerplate_penalty * table_boost
 
         if final_score < config.min_retrieval_score:
             continue
 
         with_score = dict(chunk)
         with_score["score"] = round(final_score, 4)
+        with_score["score_components"] = _rank_score_components(
+            base_similarity=overlap_score,
+            metadata_weight=metadata_weight,
+            boilerplate_penalty=boilerplate_penalty,
+            table_boost=table_boost,
+            final_score=final_score,
+        )
         weighted.append(with_score)
 
     weighted.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
     return weighted
 
 
+def _lexical_similarity(query_terms: set[str], text_terms: list[str], metric: str) -> float:
+    if not query_terms or not text_terms:
+        return 0.0
+
+    normalized_metric = metric.strip().lower()
+    text_set = set(text_terms)
+    intersection = len(query_terms & text_set)
+
+    if normalized_metric == "jaccard":
+        union_size = len(query_terms | text_set)
+        return 0.0 if union_size == 0 else intersection / union_size
+
+    if normalized_metric == "containment":
+        return intersection / max(1, len(query_terms))
+
+    # Default overlap rewards repeated token matches, preserving baseline behavior.
+    overlap_count = sum(1 for token in text_terms if token in query_terms)
+    return overlap_count / max(1, len(query_terms))
+
+
+def _metadata_weight(chunk: dict[str, Any], config: RagConfig) -> float:
+    if not config.metadata_weighting_enabled:
+        return 1.0
+
+    rules = config.metadata_weight_rules if isinstance(config.metadata_weight_rules, dict) else {}
+    if not rules:
+        return 1.0
+
+    weight = 1.0
+    for field_name, mapping in rules.items():
+        if not isinstance(mapping, dict):
+            continue
+
+        raw_value = chunk.get(field_name)
+        if isinstance(raw_value, bool):
+            key = str(raw_value).lower()
+        elif raw_value is None:
+            key = "__missing__"
+        else:
+            key = str(raw_value).strip().lower()
+
+        candidate = mapping.get(key)
+        if candidate is None:
+            continue
+        try:
+            numeric = float(candidate)
+        except (TypeError, ValueError):
+            continue
+        if numeric <= 0:
+            continue
+        weight *= numeric
+
+    return weight
+
+
+def _boilerplate_penalty_factor(chunk: dict[str, Any], config: RagConfig) -> float:
+    if not config.boilerplate_penalty_enabled:
+        return 1.0
+
+    signal = chunk.get("boilerplate_signal")
+    if not isinstance(signal, dict):
+        return 1.0
+
+    repeat_count = int(signal.get("repeat_count", 1))
+    if repeat_count <= 1:
+        return 1.0
+
+    strength = max(0.0, float(config.boilerplate_penalty_strength))
+    raw_factor = 1.0 / (1.0 + strength * float(repeat_count - 1))
+    floor = max(0.05, min(1.0, float(config.boilerplate_penalty_min_factor)))
+    return max(floor, raw_factor)
+
+
+def _table_boost_factor(
+    query_terms: set[str],
+    chunk: dict[str, Any],
+    *,
+    tabular_intent: bool,
+    config: RagConfig,
+) -> float:
+    if not config.table_aware_boost_enabled or not tabular_intent:
+        return 1.0
+
+    if not bool(chunk.get("is_tabular")):
+        return 1.0
+
+    boost = 1.0 + max(0.0, float(config.table_intent_base_boost))
+
+    header_text = ""
+    tabular_meta = chunk.get("tabular_chunk_metadata")
+    if isinstance(tabular_meta, dict):
+        header_text = str(tabular_meta.get("header_text", "") or "")
+    header_terms = set(_tokenize(header_text)) if header_text else set()
+    if header_terms and (header_terms & query_terms):
+        boost += max(0.0, float(config.table_header_match_boost))
+
+    row_lines = [line.strip() for line in str(chunk.get("text", "")).splitlines() if line.strip()]
+    if header_text and row_lines:
+        row_lines = row_lines[1:]
+    row_matches = 0
+    for row in row_lines:
+        if set(_tokenize(row)) & query_terms:
+            row_matches += 1
+    if row_matches > 0:
+        boost += max(0.0, float(config.table_row_match_boost))
+
+    return boost
+
+
+def _rank_score_components(
+    *,
+    base_similarity: float,
+    metadata_weight: float,
+    boilerplate_penalty: float,
+    table_boost: float,
+    final_score: float,
+) -> dict[str, float]:
+    return {
+        "base_similarity": round(base_similarity, 6),
+        "metadata_weight": round(metadata_weight, 6),
+        "boilerplate_penalty": round(boilerplate_penalty, 6),
+        "table_boost": round(table_boost, 6),
+        "final_score": round(final_score, 6),
+    }
+
+
+def _attach_retrieval_diagnostics(
+    diagnostics: dict[str, Any],
+    *,
+    config: RagConfig,
+    backend: str,
+    query_terms: set[str],
+    ranked: list[dict[str, Any]],
+) -> None:
+    mode = config.retrieval_diagnostics_mode.strip().lower()
+    if mode not in {"summary", "verbose"}:
+        return
+
+    diagnostics["backend"] = backend
+    diagnostics["query_terms"] = sorted(query_terms)
+
+    if mode != "verbose":
+        return
+
+    limit = max(1, int(config.retrieval_diagnostics_top_n))
+    explanations: list[dict[str, Any]] = []
+    for item in ranked[:limit]:
+        explanations.append(
+            {
+                "chunk_id": str(item.get("chunk_id", "")),
+                "source": str(item.get("source", "")),
+                "score": float(item.get("score", 0.0)),
+                "components": item.get("score_components", {}),
+            }
+        )
+    diagnostics["final_rank_explanations"] = explanations
+
+
 def _score_tfidf(
     query_terms: set[str],
     candidates: list[dict[str, Any]],
     config: RagConfig,
+    *,
+    tabular_intent: bool,
 ) -> list[dict[str, Any]]:
     weighted: list[dict[str, Any]] = []
     if not query_terms or not candidates:
@@ -772,19 +971,117 @@ def _score_tfidf(
         doc_norm = math.sqrt(sum(value * value for value in doc_weights.values()))
         similarity = 0.0 if doc_norm == 0.0 else dot / (doc_norm * query_norm)
 
-        doc_type = str(chunk.get("doc_type", "unknown")).lower()
-        doc_weight = 1.1 if doc_type in {"policy", "procedure", "report", "faq"} else 1.0
-        final_score = similarity * doc_weight
+        metadata_weight = _metadata_weight(chunk, config)
+        boilerplate_penalty = _boilerplate_penalty_factor(chunk, config)
+        table_boost = _table_boost_factor(
+            query_terms,
+            chunk,
+            tabular_intent=tabular_intent,
+            config=config,
+        )
+        final_score = similarity * metadata_weight * boilerplate_penalty * table_boost
 
         if final_score < config.min_retrieval_score:
             continue
 
         with_score = dict(chunk)
         with_score["score"] = round(final_score, 4)
+        with_score["score_components"] = _rank_score_components(
+            base_similarity=similarity,
+            metadata_weight=metadata_weight,
+            boilerplate_penalty=boilerplate_penalty,
+            table_boost=table_boost,
+            final_score=final_score,
+        )
         weighted.append(with_score)
 
     weighted.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
     return weighted
+
+
+def _build_vector_embedder(config: RagConfig) -> VectorEmbedder:
+    adapter = config.vector_backend_adapter.strip().lower()
+    if adapter == "hashing":
+        return HashingVectorEmbedder(
+            dimension=config.vector_dimension,
+            use_char_ngrams=config.vector_use_char_ngrams,
+            char_ngram_min=config.vector_char_ngram_min,
+            char_ngram_max=config.vector_char_ngram_max,
+        )
+
+    # Fallback keeps backend operational even for unsupported adapter names.
+    return HashingVectorEmbedder(
+        dimension=config.vector_dimension,
+        use_char_ngrams=config.vector_use_char_ngrams,
+        char_ngram_min=config.vector_char_ngram_min,
+        char_ngram_max=config.vector_char_ngram_max,
+    )
+
+
+def _score_vector(
+    query_text: str,
+    query_terms: set[str],
+    candidates: list[dict[str, Any]],
+    config: RagConfig,
+    embedder: VectorEmbedder,
+    *,
+    tabular_intent: bool,
+) -> list[dict[str, Any]]:
+    weighted: list[dict[str, Any]] = []
+    if not query_text.strip() or not candidates:
+        return weighted
+
+    query_vector = embedder.embed(query_text)
+    if not query_vector:
+        return weighted
+
+    for chunk in candidates:
+        text = str(chunk.get("text", ""))
+        if not text.strip():
+            continue
+        similarity = _vector_similarity(query_vector, embedder.embed(text), config.vector_similarity_metric)
+
+        metadata_weight = _metadata_weight(chunk, config)
+        boilerplate_penalty = _boilerplate_penalty_factor(chunk, config)
+        table_boost = _table_boost_factor(
+            query_terms,
+            chunk,
+            tabular_intent=tabular_intent,
+            config=config,
+        )
+        final_score = similarity * metadata_weight * boilerplate_penalty * table_boost
+
+        if final_score < config.min_retrieval_score:
+            continue
+
+        with_score = dict(chunk)
+        with_score["score"] = round(final_score, 4)
+        with_score["score_components"] = _rank_score_components(
+            base_similarity=similarity,
+            metadata_weight=metadata_weight,
+            boilerplate_penalty=boilerplate_penalty,
+            table_boost=table_boost,
+            final_score=final_score,
+        )
+        weighted.append(with_score)
+
+    weighted.sort(key=lambda item: float(item.get("score", 0.0)), reverse=True)
+    return weighted
+
+
+def _vector_similarity(left: list[float], right: list[float], metric: str) -> float:
+    if not left or not right or len(left) != len(right):
+        return 0.0
+
+    normalized_metric = metric.strip().lower()
+    if normalized_metric in {"dot", "dot_product"}:
+        return sum(a * b for a, b in zip(left, right))
+
+    if normalized_metric in {"euclidean", "l2"}:
+        distance = math.sqrt(sum((a - b) ** 2 for a, b in zip(left, right)))
+        return 1.0 / (1.0 + distance)
+
+    return cosine_similarity(left, right)
 
 
 def _rrf_fuse(
@@ -823,7 +1120,7 @@ def retrieve_chunks_with_diagnostics(
     chunks: list[dict[str, Any]],
     config: RagConfig,
     thesaurus: dict[str, Any],
-) -> tuple[list[dict[str, Any]], dict[str, int]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     response = retrieve_via_interface(query, chunks, config, thesaurus)
     return response.ranked_chunks, response.diagnostics
 
@@ -833,6 +1130,7 @@ class LexicalRetriever(Retriever):
 
     def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
         query_terms = expand_query_terms(request.query, request.thesaurus)
+        tabular_intent = is_tabular_intent(request.query, request.thesaurus)
         if not query_terms:
             return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
 
@@ -843,9 +1141,21 @@ class LexicalRetriever(Retriever):
             lifecycle_store,
         )
 
-        ranked = _score_lexical(query_terms, candidates, request.config)
+        ranked = _score_lexical(
+            query_terms,
+            candidates,
+            request.config,
+            tabular_intent=tabular_intent,
+        )
         retained = ranked[: request.config.top_k]
         diagnostics["retained"] = len(retained)
+        _attach_retrieval_diagnostics(
+            diagnostics,
+            config=request.config,
+            backend="lexical",
+            query_terms=query_terms,
+            ranked=retained,
+        )
         return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
 
 
@@ -854,6 +1164,7 @@ class TfidfRetriever(Retriever):
 
     def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
         query_terms = expand_query_terms(request.query, request.thesaurus)
+        tabular_intent = is_tabular_intent(request.query, request.thesaurus)
         if not query_terms:
             return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
 
@@ -864,9 +1175,21 @@ class TfidfRetriever(Retriever):
             lifecycle_store,
         )
 
-        ranked = _score_tfidf(query_terms, candidates, request.config)
+        ranked = _score_tfidf(
+            query_terms,
+            candidates,
+            request.config,
+            tabular_intent=tabular_intent,
+        )
         retained = ranked[: request.config.top_k]
         diagnostics["retained"] = len(retained)
+        _attach_retrieval_diagnostics(
+            diagnostics,
+            config=request.config,
+            backend="tfidf",
+            query_terms=query_terms,
+            ranked=retained,
+        )
         return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
 
 
@@ -875,6 +1198,7 @@ class HybridRrfRetriever(Retriever):
 
     def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
         query_terms = expand_query_terms(request.query, request.thesaurus)
+        tabular_intent = is_tabular_intent(request.query, request.thesaurus)
         if not query_terms:
             return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
 
@@ -885,11 +1209,72 @@ class HybridRrfRetriever(Retriever):
             lifecycle_store,
         )
 
-        lexical = _score_lexical(query_terms, candidates, request.config)
-        tfidf = _score_tfidf(query_terms, candidates, request.config)
+        lexical = _score_lexical(
+            query_terms,
+            candidates,
+            request.config,
+            tabular_intent=tabular_intent,
+        )
+        tfidf = _score_tfidf(
+            query_terms,
+            candidates,
+            request.config,
+            tabular_intent=tabular_intent,
+        )
         fused = _rrf_fuse(lexical, tfidf, request.config)
         retained = fused[: request.config.top_k]
         diagnostics["retained"] = len(retained)
+        _attach_retrieval_diagnostics(
+            diagnostics,
+            config=request.config,
+            backend="hybrid_rrf",
+            query_terms=query_terms,
+            ranked=retained,
+        )
+        return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
+
+
+class VectorRetriever(Retriever):
+    """Vector retriever using a pluggable embedding adapter boundary."""
+
+    def __init__(self, embedder: VectorEmbedder | None = None) -> None:
+        self._embedder = embedder
+
+    def retrieve(self, request: RetrievalRequest) -> RetrievalResponse:
+        query_terms = expand_query_terms(request.query, request.thesaurus)
+        tabular_intent = is_tabular_intent(request.query, request.thesaurus)
+        query_text = request.query.strip()
+        if query_terms:
+            # Expanded terms enrich the vector query while preserving adapter agnosticism.
+            query_text = " ".join(sorted(query_terms))
+        if not query_text:
+            return RetrievalResponse(ranked_chunks=[], diagnostics=_empty_diagnostics())
+
+        lifecycle_store = LifecycleStateStore(request.config.lifecycle_state_path)
+        candidates, diagnostics = _apply_lifecycle_filters(
+            request.chunks,
+            request.config,
+            lifecycle_store,
+        )
+
+        embedder = self._embedder or _build_vector_embedder(request.config)
+        ranked = _score_vector(
+            query_text,
+            query_terms,
+            candidates,
+            request.config,
+            embedder,
+            tabular_intent=tabular_intent,
+        )
+        retained = ranked[: request.config.top_k]
+        diagnostics["retained"] = len(retained)
+        _attach_retrieval_diagnostics(
+            diagnostics,
+            config=request.config,
+            backend="vector",
+            query_terms=query_terms,
+            ranked=retained,
+        )
         return RetrievalResponse(ranked_chunks=retained, diagnostics=diagnostics)
 
 
@@ -904,6 +1289,8 @@ def retrieve_via_interface(
         backend = config.retrieval_backend.strip().lower()
         if backend == "tfidf":
             active_retriever: Retriever = TfidfRetriever()
+        elif backend == "vector":
+            active_retriever = VectorRetriever()
         elif backend in {"hybrid", "hybrid_rrf"}:
             active_retriever = HybridRrfRetriever()
         else:

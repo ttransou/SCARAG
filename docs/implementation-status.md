@@ -14,8 +14,13 @@ This document tracks implementation progress for the framework surfaces describe
 - Chunking overlap policy is formalized by chunk type with normalized defaults for prose and tabular windows.
 - Prose chunking applies configurable lexical cohesion segmentation into source units before chunk windowing.
 - Chunk metadata preserves source-unit boundaries and propagates ingestion metadata into retrieval outputs.
-- Confidence resolver scoring is implemented as a baseline.
-- TF-IDF retrieval backend and hybrid RRF scaffold are implemented baselines; vector backend remains a roadmap target.
+- Confidence resolver scoring is implemented as a baseline, including configurable temporal decay based on lifecycle timestamps and framework-level intent alignment adjustments.
+- TF-IDF retrieval backend, vector retrieval backend (adapter-based hashing baseline), and hybrid RRF scaffold are implemented baselines.
+- Retrieval similarity metrics are configurable for lexical scoring (overlap/jaccard/containment) and vector scoring (cosine/dot/euclidean).
+- Retrieval metadata weighting is configurable beyond doc_type-only weighting.
+- Retrieval scoring applies configurable boilerplate penalties using persisted repetition signals.
+- Retrieval scoring applies table-aware boosting tied to tabular intent and row/header matches.
+- Retrieval diagnostics output mode includes query terms, pruning counters, and final rank explanations.
 
 ## Update Rule
 When a roadmap target moves to partial or implemented, update this file and the capability matrix in README in the same change set.

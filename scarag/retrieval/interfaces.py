@@ -17,7 +17,7 @@ class RetrievalRequest:
 @dataclass(frozen=True)
 class RetrievalResponse:
     ranked_chunks: list[dict[str, Any]]
-    diagnostics: dict[str, int]
+    diagnostics: dict[str, Any]
 
 
 class Retriever(Protocol):

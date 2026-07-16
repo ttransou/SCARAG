@@ -65,35 +65,35 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [X] Implemented: Query expansion from config/synonyms.json.
 - [X] Implemented: Score threshold and top_k controls in lexical retrieval.
 - [x] Implemented (Foundational): Add TF-IDF retrieval backend with explicit cosine normalization behavior.
-- [ ] Roadmap target (Foundational): Add vector retrieval backend behind configurable adapter boundary.
-- [ ] Design/specification: Similarity metric options beyond current lexical overlap pending vector backend.
-- [ ] Partial: Metadata weighting currently doc_type-only.
-- [ ] Roadmap target: Add boilerplate penalties once repeated boilerplate signals are persisted.
-- [ ] Roadmap target: Add table-aware boosting tied to tabular intent and row/header matches.
+- [x] Implemented (Foundational baseline): Add vector retrieval backend behind configurable adapter boundary.
+- [x] Implemented (baseline): Similarity metric options beyond lexical overlap (lexical and vector metric selectors).
+- [x] Implemented (baseline): Configurable metadata weighting is supported beyond doc_type-only weighting.
+- [x] Implemented (baseline): Add boilerplate penalties with persisted repeated-boilerplate signals.
+- [x] Implemented (baseline): Add table-aware boosting tied to tabular intent and row/header matches.
 - [x] Implemented: Add baseline reranking strategy with lexical/TF-IDF hybrid RRF blending scaffold.
-- [ ] Roadmap target: Add retrieval diagnostics output mode for query terms, candidate pruning, and final rank explanations.
+- [x] Implemented (baseline): Add retrieval diagnostics output mode for query terms, candidate pruning, and final rank explanations.
 
 ### 5. Governance / Lifecycle / Freshness
 - [x] Implemented (Foundational): Persist ingestion timestamps and upsert timestamps per source_unit_id (baseline store + chunk propagation implemented).
 - [x] Implemented: Persist deletion marks and status values in lifecycle state (fields and store semantics implemented).
 - [x] Implemented (Foundational): Implement persistent re-ingestion state store (file-backed baseline implemented; audit/reporting hardening pending).
-- [ ] Roadmap target: Add skip-unchanged behavior controlled by explicit flag and audit logging.
+- [x] Implemented: Add skip-unchanged behavior controlled by explicit flag and audit logging.
 - [x] Implemented: Exclude soft-deleted units by default from retrieval.
 - [x] Implemented: Add freshness filtering based on lifecycle timestamps.
 - [x] Implemented: Add status filtering allow-list/deny-list controls.
-- [ ] Roadmap target: Implement lifecycle audit reporting utility.
-- [ ] Design/specification: Hard cleanup utility for permanently purging soft-deleted state.
+- [x] Implemented: Implement lifecycle audit reporting utility.
+- [x] Implemented: Hard cleanup utility for permanently purging soft-deleted state.
 
 ### 6. Confidence / Provenance
-- [ ] Partial: API emits high/low/abstain confidence signal.
+- [x] Implemented: API emits high/low/abstain confidence signal.
 - [x] Implemented (Foundational): Implement confidence resolver module and integrate into API and evaluation pipeline.
 - [x] Implemented: Define extraction confidence tiers and baseline mapping from extraction_method.
-- [ ] Roadmap target: Add domain confidence overlays in profile configs.
-- [ ] Roadmap target: Add temporal decay support in confidence scoring.
-- [ ] Roadmap target: Add intent-based confidence boosting/penalties.
+- [x] Implemented: Add temporal decay support in confidence scoring.
+- [x] Implemented: Add intent-based confidence boosting/penalties using framework-level intent signals only (no domain-specific policy enforcement in core).
 - [ ] Design/specification: Conflict-handling policy for contradictory evidence sources.
-- [ ] Partial: Provenance fields in citations exist; completeness enforcement is missing.
+- [x] Implemented: Provenance fields in citations exist with completeness enforcement in API emission.
 - [ ] Roadmap target: Add citation quality checks (snippet adequacy, source traceability, duplicate policy).
+- [ ] Roadmap target (deferred; profile configs not yet active): Add domain confidence overlays in profile configs.
 
 ### 7. Tabular Grounding
 - [ ] Partial: Table intent detection exists via thesaurus intent group.

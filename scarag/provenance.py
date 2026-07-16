@@ -64,6 +64,50 @@ def validate_citation_fields(citations: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def filter_complete_source_chunks(chunks: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    retained: list[dict[str, Any]] = []
+    dropped = 0
+    missing_by_field = {field: 0 for field in REQUIRED_SOURCE_FIELDS}
+
+    for chunk in chunks:
+        missing = _missing_fields(chunk, REQUIRED_SOURCE_FIELDS)
+        if missing:
+            dropped += 1
+            for field in missing:
+                missing_by_field[field] += 1
+            continue
+        retained.append(chunk)
+
+    return retained, {
+        "input_total": len(chunks),
+        "retained": len(retained),
+        "dropped": dropped,
+        "missing_by_field": missing_by_field,
+    }
+
+
+def filter_complete_citations(citations: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    retained: list[dict[str, Any]] = []
+    dropped = 0
+    missing_by_field = {field: 0 for field in REQUIRED_CITATION_FIELDS}
+
+    for citation in citations:
+        missing = _missing_fields(citation, REQUIRED_CITATION_FIELDS)
+        if missing:
+            dropped += 1
+            for field in missing:
+                missing_by_field[field] += 1
+            continue
+        retained.append(citation)
+
+    return retained, {
+        "input_total": len(citations),
+        "retained": len(retained),
+        "dropped": dropped,
+        "missing_by_field": missing_by_field,
+    }
+
+
 def validate_provenance(chunks: list[dict[str, Any]], citations: list[dict[str, Any]]) -> dict[str, Any]:
     source_validation = validate_source_fields(chunks)
     citation_validation = validate_citation_fields(citations)

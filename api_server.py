@@ -7,7 +7,11 @@ from scarag.config import RagConfig
 from scarag.generation.answerer import generate_answer
 from scarag.ingestion.loader import load_documents
 from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus, retrieve_chunks
-from scarag.provenance import validate_provenance
+from scarag.provenance import (
+    filter_complete_citations,
+    filter_complete_source_chunks,
+    validate_provenance,
+)
 from scarag.tabular_grounding import apply_tabular_grounding
 
 try:
@@ -37,6 +41,14 @@ app = FastAPI(title="SCARAG", version="0.1.0")
 _CONFIG = RagConfig()
 _THESAURUS = load_thesaurus(_CONFIG)
 _CHUNK_CACHE: list[dict[str, Any]] | None = None
+_ALLOWED_CONFIDENCE_LABELS = {"high", "low", "abstain"}
+
+
+def _normalize_confidence_label(label: Any) -> str:
+    normalized = str(label or "").strip().lower()
+    if normalized in _ALLOWED_CONFIDENCE_LABELS:
+        return normalized
+    return "abstain"
 
 
 def _get_chunks() -> list[dict[str, Any]]:
@@ -106,14 +118,16 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
         tabular_intent=tabular_query,
     )
     answer_context = grounded_chunks if tabular_query else ranked_chunks
+    enforced_context, source_enforcement = filter_complete_source_chunks(answer_context)
     response_text = generate_answer(
         query,
-        answer_context,
+        enforced_context,
         mode=_CONFIG.generation_mode,
         tabular_intent=tabular_query,
     )
 
-    citations = [_to_citation(chunk, index) for index, chunk in enumerate(answer_context)]
+    raw_citations = [_to_citation(chunk, index) for index, chunk in enumerate(enforced_context)]
+    citations, citation_enforcement = filter_complete_citations(raw_citations)
     visible = citations[:3]
     collapsed = citations[3:]
 
@@ -127,14 +141,26 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
         "hidden_count": len(collapsed),
         "label": "citations available" if citations else "no citations",
     }
-    provenance_validation = validate_provenance(answer_context, citations)
+    provenance_validation = validate_provenance(enforced_context, citations)
+    provenance_validation["enforcement"] = {
+        "source_chunks": source_enforcement,
+        "citations": citation_enforcement,
+    }
 
     confidence_result = resolve_confidence(
         query,
-        answer_context,
+        enforced_context,
         tabular_intent=tabular_query,
+        thesaurus=_THESAURUS,
+        temporal_decay_enabled=_CONFIG.confidence_temporal_decay_enabled,
+        temporal_decay_half_life_days=_CONFIG.confidence_temporal_decay_half_life_days,
+        temporal_decay_floor=_CONFIG.confidence_temporal_decay_floor,
+        intent_adjustment_enabled=_CONFIG.confidence_intent_adjustment_enabled,
+        intent_match_boost=_CONFIG.confidence_intent_match_boost,
+        intent_mismatch_penalty=_CONFIG.confidence_intent_mismatch_penalty,
+        intent_adjustment_floor=_CONFIG.confidence_intent_adjustment_floor,
     )
-    confidence = confidence_result.label
+    confidence = _normalize_confidence_label(confidence_result.label)
 
     return {
         "message": {

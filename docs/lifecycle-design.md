@@ -10,7 +10,7 @@ This document specifies lifecycle and freshness behavior for active framework de
 - retrieval lifecycle diagnostics counters exposed.
 
 ## Roadmap Targets
-- lifecycle audit timelines and reporting utilities.
+- lifecycle audit timelines and reporting utilities. (Implemented baseline via `scripts/lifecycle_audit_report.py`)
 
 ## Policy Direction
 Lifecycle policy should remain implementation-tunable while preserving framework-level evidence governance guarantees.
@@ -42,11 +42,11 @@ Current baseline implementation:
 - missing/invalid timestamp policy is explicit (include or exclude),
 - lifecycle filter diagnostics counters are available from retrieval diagnostics output.
 
-## Re-ingestion Behavior (Target)
+## Re-ingestion Behavior (Implemented Baseline + Target)
 Re-ingestion should preserve long-lived identity while refreshing update state.
 
 Expected behavior:
-- unchanged content: retain ingestion timestamp and optionally skip indexing,
+- unchanged content: retain ingestion timestamp and optionally skip indexing (`lifecycle_skip_unchanged`),
 - changed content for existing source_unit_id: retain ingestion_iso_ts and update last_upsert_iso_ts,
 - newly observed source unit: initialize ingestion and upsert timestamps,
 - soft-delete operation: mark deletion timestamp without removing audit history.
@@ -58,6 +58,11 @@ Lifecycle diagnostics should be inspectable through reports or APIs and should i
 - status-filter exclusion counts,
 - re-ingestion event counts (created, updated, unchanged-skipped),
 - invalid or missing timestamp counts.
+
+Current baseline utility support:
+- file-backed lifecycle audit log (JSONL) via `lifecycle_audit_logging_enabled` + `lifecycle_audit_log_path`,
+- lifecycle report utility: `scripts/lifecycle_audit_report.py`,
+- hard purge utility for soft-deleted records: `scripts/lifecycle_cleanup.py`.
 
 Current baseline implementation includes retrieval-time counters for:
 - filtered_soft_deleted,

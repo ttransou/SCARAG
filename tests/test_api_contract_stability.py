@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 import api_server
@@ -98,3 +100,70 @@ def test_chat_collapses_low_score_citation_when_hidden_set_is_empty(monkeypatch)
     assert len(body["citations"]) == 1
     assert len(body["collapsed_citations"]) == 1
     assert body["collapsed_citations"][0]["id"] == "low:0"
+
+
+def test_chat_confidence_is_restricted_to_contract_labels(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_server,
+        "_CHUNK_CACHE",
+        [
+            {
+                "chunk_id": "doc1:0",
+                "source": "data/policy-1.md",
+                "text": "policy alpha beta",
+                "doc_type": "policy",
+                "is_tabular": False,
+            }
+        ],
+    )
+    monkeypatch.setattr(api_server, "_THESAURUS", {"terms": {}, "intent_groups": {}})
+    monkeypatch.setattr(
+        api_server,
+        "resolve_confidence",
+        lambda *args, **kwargs: SimpleNamespace(label="medium", score=0.6, reason="synthetic"),
+    )
+
+    client = TestClient(api_server.app)
+    response = client.post("/api/chat", json={"query": "policy alpha"})
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["confidence"] == "abstain"
+
+
+def test_chat_filters_incomplete_provenance_and_reports_enforcement(monkeypatch) -> None:
+    monkeypatch.setattr(
+        api_server,
+        "_CHUNK_CACHE",
+        [
+            {
+                "chunk_id": "",
+                "source": "",
+                "text": "policy alpha invalid",
+                "doc_type": "policy",
+                "is_tabular": False,
+            },
+            {
+                "chunk_id": "doc-good:0",
+                "source": "data/policy-good.md",
+                "text": "policy alpha valid",
+                "doc_type": "policy",
+                "is_tabular": False,
+            },
+        ],
+    )
+    monkeypatch.setattr(api_server, "_THESAURUS", {"terms": {}, "intent_groups": {}})
+
+    client = TestClient(api_server.app)
+    response = client.post("/api/chat", json={"query": "policy alpha"})
+    assert response.status_code == 200
+
+    body = response.json()
+    summary = body["message"]["citations_summary"]
+    enforcement = body["message"]["provenance_validation"]["enforcement"]
+
+    assert summary["total_count"] == 1
+    assert len(body["citations"]) + len(body["collapsed_citations"]) == 1
+    assert enforcement["source_chunks"]["dropped"] >= 1
+    assert enforcement["source_chunks"]["missing_by_field"]["source"] >= 1
+    assert enforcement["source_chunks"]["missing_by_field"]["chunk_id"] >= 1
