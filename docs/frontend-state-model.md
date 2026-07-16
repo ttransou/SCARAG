@@ -16,6 +16,7 @@ The current reference UI maintains these local state atoms:
 - `theme`: the current visual theme selection
 - `feedbackDrafts`: draft free-text feedback keyed by assistant message id
 - `activeView`: the main workspace mode, currently `chat` or `faq`
+- `selectedEvalSignal`: currently selected evaluation chip key for optional advanced diagnostics
 
 ## 2. Message Model
 
@@ -31,6 +32,7 @@ Assistant messages currently support these fields:
 - `citations`
 - `confidence`
 - `score`
+- `evaluation` (optional per-response diagnostics with compact signals + detailed payload)
 - `feedback`
 
 The initial assistant message is a ready-state placeholder with empty citations, a `Ready` confidence label, and no score or feedback.
@@ -53,7 +55,7 @@ The main derived value is `activeMessage`, which is selected as the most recent 
 
 If no assistant message exists, the UI falls back to the last message in the array.
 
-This derived state drives the evidence drawer, confidence badge, and score badge, so the drawer always reflects the currently active assistant response.
+This derived state drives the evidence drawer, confidence badge, score badge, and evaluation strip so the drawer always reflects the currently active assistant response.
 
 ## 4. State Transitions
 
@@ -73,8 +75,10 @@ When the response arrives:
 1. the assistant placeholder is replaced with the answer payload
 2. citations are normalized to a small reference-card structure, preferring `citations` and falling back to legacy `sources` when present
 3. confidence and score are copied into the assistant message
+4. optional evaluation diagnostics are normalized into compact chips and hidden advanced details
 
 If the request fails, the assistant placeholder is replaced with an offline state and a connection-failure citation stub.
+An informational fallback evaluation chip is shown to indicate diagnostics are unavailable.
 
 ### Feedback handling
 
@@ -105,6 +109,8 @@ The state atoms map to the visible interface as follows:
 - assistant `confidence` renders as a badge in the answer chrome and a value in the drawer
 - assistant `score` renders as an optional badge and a drawer metric
 - assistant `citations` render as the visible citation cards in the drawer
+- assistant `evaluation.signals` render as compact clickable chips in the drawer's evaluation strip
+- assistant `evaluation.details` render only inside the collapsed advanced diagnostics section beneath citations
 - `feedback` renders the thumbs state and feedback text area
 
 ## 6. Persistence Boundaries

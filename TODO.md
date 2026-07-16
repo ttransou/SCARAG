@@ -124,13 +124,13 @@ These items are intentionally tracked outside Immediate Priorities and should be
 
 ### 10. Reference UI
 - [X] Implemented: Answer-first display with source drawer pattern.
-- [ ] Partial: Citation dedup/collapse behavior is split between backend and UI; needs unified policy doc.
+- [x] Implemented (baseline): Citation dedup/collapse policy is now unified and documented with backend/UI ownership boundaries.
 - [X] Implemented: Feedback placeholder and FAQ template view exist.
 - [X] Implemented: Theme toggle exists.
-- [ ] Roadmap target: Document whether FAQ and feedback scaffolds remain template-only or become configurable assets.
+- [x] Implemented (baseline): FAQ starts as template scaffold and should be configurable by domain; feedback remains scaffolded with implementation-specific configurable persistence/routing.
 - [ ] Roadmap target: Improve accessibility (keyboard nav, aria review, contrast checks, focus order).
-- [ ] Partial: Implementation-neutral UI guidance exists; add explicit do/don't list for framework vs brand customization.
-- [ ] Roadmap target: Document how evaluation outputs should be surfaced in the reference UI and developer workflow.
+- [x] Implemented (baseline): Implementation-neutral UI guidance now includes explicit framework-vs-brand customization do/don't rules.
+- [x] Implemented (baseline): Evaluation outputs are documented as minimal, clickable per-response indicators near citations, with optional detail disclosure and aggregate offline workflow alignment.
 - [ ] Design/specification: UI polish tasks that do not affect framework contract fidelity.
 - [ ] Design/specification: Tighten spacing, hierarchy, and affordances in the reference shell.
 - [ ] Design/specification: Add a short visual polish checklist for implementers.
@@ -169,8 +169,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Roadmap target: Ensure new framework claims and implementation notes are backed by citations where appropriate.
 
 ### Fallback Integration
-- [ ] Partial: fallback_template.json scaffold and scripts/fallbacks.py runtime loader are implemented.
-- [ ] Roadmap target: Add integration test or manual checklist for fallback priority (explicit FAQ mapping > intent match > generic fallback).
+- [x] Implemented (baseline): fallback_template.json scaffold and scripts/fallbacks.py runtime loader are implemented.
+- [x] Implemented: Added integration test coverage and maintainer checklist guidance for fallback priority (explicit FAQ mapping > intent match > generic fallback).
 
 ## Implementation-Specific Boundaries
 - [ ] Future extension: Live model provider integrations, cloud deployment topology, auth, and observability are implementation-specific by design.

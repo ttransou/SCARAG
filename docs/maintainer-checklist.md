@@ -39,6 +39,15 @@ If a change introduces or alters evaluation behavior, verify all applicable item
 - Verify UI endpoint and API health endpoint in docs are correct.
 - Ensure any new scripts or command changes are reflected in contributor guidance.
 
+## 5.1 Fallback integration checks
+
+If fallback template entries or loader selection logic changed, verify all applicable items:
+
+- Confirm fallback priority remains `explicit FAQ mapping > intent match > generic fallback`.
+- Run fallback integration tests in `tests/test_fallbacks.py`.
+- Confirm `fallback_template.json` retains a valid `generic_fallback` entry as safe default.
+- Update `TODO.md` and implementation status docs when fallback verification coverage changes.
+
 ## 6. Verification checks before merge
 
 - Run frontend build when UI code or styles changed.

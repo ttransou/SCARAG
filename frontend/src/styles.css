@@ -439,6 +439,108 @@ button {
   gap: 0.65rem;
 }
 
+.eval-surface {
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  border-radius: 16px;
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.eval-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.eval-hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.eval-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.eval-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+  font-size: 0.8rem;
+  background: transparent;
+  color: var(--text);
+}
+
+.eval-chip.status-pass {
+  color: #16a34a;
+}
+
+.eval-chip.status-warn {
+  color: #f59e0b;
+}
+
+.eval-chip.status-info {
+  color: var(--accent);
+}
+
+.eval-chip.active {
+  background: var(--chip);
+  border-color: var(--accent);
+}
+
+.eval-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.eval-details {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 0.65rem;
+}
+
+.eval-details h4 {
+  margin: 0 0 0.35rem;
+  font-size: 0.92rem;
+}
+
+.eval-details ul {
+  margin: 0;
+  padding-left: 1rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+
+.eval-advanced {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--panel-strong);
+  padding: 0.5rem 0.65rem;
+}
+
+.eval-advanced summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.eval-advanced[open] {
+  padding-bottom: 0.65rem;
+}
+
+.eval-advanced-hint {
+  margin: 0.55rem 0 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
 .citation-card,
 .empty-state,
 .metric-card {
@@ -460,7 +562,8 @@ button {
 .citation-card,
 .empty-state,
 .metric-card,
-.faq-card {
+.faq-card,
+.eval-surface {
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
 
@@ -469,7 +572,8 @@ button {
 .citation-card:hover,
 .empty-state:hover,
 .metric-card:hover,
-.faq-card:hover {
+.faq-card:hover,
+.eval-surface:hover {
   transform: translateY(-1px);
   border-color: rgba(96, 165, 250, 0.32);
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);

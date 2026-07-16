@@ -88,6 +88,34 @@ Required behavior:
 
 The drawer should always show the currently active assistant message's evidence, not a blended history of all answers.
 
+## Unified Citation Dedup/Collapse Policy
+
+The framework baseline uses a single policy with clear ownership boundaries so citation behavior is stable across backend and reference UI.
+
+### Backend-owned responsibilities
+
+- enforce required citation fields and citation-quality checks before emission
+- enforce duplicate collapse by `(chunk_id, normalized document)` and keep the first retained citation
+- shape response evidence into:
+	- `citations`: visible set shown by default
+	- `collapsed_citations`: retained-but-hidden set available on demand
+- emit `message.citations_summary` counts derived from the post-quality, post-dedup citation set
+
+### UI-owned responsibilities
+
+- treat backend `citations` and `collapsed_citations` as authoritative in modern (`contract_version` 1.x) payloads
+- render visible citations first and keep collapsed citations inspectable through a secondary drawer section or reveal action
+- do not re-rank or merge backend citations in ways that change provenance identity
+- preserve order from backend payloads so reviewers can compare UI evidence with API diagnostics
+
+### Legacy fallback responsibilities
+
+When only legacy `sources` are provided, the reference UI may apply a compatibility normalization path. In that mode:
+
+- local dedup/collapse heuristics are allowed as compatibility behavior
+- compatibility behavior must not be treated as the primary framework contract
+- once modern `citations` payloads are present, backend-owned shaping rules above take precedence
+
 ## Citation Quality Policy
 
 The backend baseline now enforces citation-quality checks before citations reach the visible or collapsed sets.
@@ -136,6 +164,30 @@ Recommended meanings:
 
 Implementations may add more specific confidence labels, but the reference UI should preserve the textual signal and show it in the answer chrome and evidence drawer.
 
+## Evaluation Signal Surfacing
+
+Evaluation diagnostics should be available per assistant response, but remain lightweight and non-intrusive for routine users.
+
+Baseline UI guidance:
+
+- show eval indicators near citations/evidence, not in the primary answer text block
+- keep indicators minimal (for example: pass/warn badges, short metric labels, or compact status chips)
+- make each indicator clickable to select a diagnostic scope for on-demand detail viewing
+- default to collapsed/hidden evaluation detail panels so users who do not care about eval are not burdened
+- keep citation review and evaluation review co-located in the evidence drawer to reduce context switching
+
+Reference drawer pattern:
+
+- render compact eval chips in a small evaluation strip above citation cards
+- place detailed diagnostics in a collapsed "Advanced eval diagnostics" section below citation cards
+- require explicit user action for detail reveal (select chip, then expand advanced section)
+- keep the advanced section optional and visually secondary to citation inspection
+
+Contract boundary:
+
+- framework baseline defines placement and interaction pattern (minimal + clickable + optional)
+- implementations define visual treatment, exact metric set, and storage/telemetry wiring
+
 ## Abstention Reason Codes
 
 The baseline framework now emits stable generation-level reason codes for abstention or placeholder states.
@@ -166,6 +218,11 @@ Implementation-specific choices:
 - feedback persistence and analytics
 - exact citation ordering rules beyond the visible/collapsed split
 - source-link generation strategy
+
+FAQ and feedback scaffold policy:
+
+- FAQ starts as a reference template in framework baseline and should be configurable by domain implementations to match use-case language, workflows, and policy context
+- feedback controls are baseline scaffold UX; persistence targets, routing, analytics, and moderation are implementation-specific configurable assets
 
 ## Change Rule
 

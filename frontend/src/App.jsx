@@ -38,8 +38,14 @@ function App() {
   const [theme, setTheme] = useState('default');
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [activeView, setActiveView] = useState('chat');
+  const [selectedEvalSignal, setSelectedEvalSignal] = useState(null);
 
   const activeMessage = [...messages].reverse().find((message) => message.role === 'assistant') || messages[messages.length - 1];
+  const activeEvalSignals = activeMessage?.evaluation?.signals || [];
+  const activeEvalDetails = activeMessage?.evaluation?.details || {};
+  const activeEvalKey = activeEvalSignals.some((signal) => signal.key === selectedEvalSignal)
+    ? selectedEvalSignal
+    : null;
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -85,6 +91,7 @@ function App() {
       };
 
       setMessages((previousMessages) => previousMessages.map((message) => (message.id === assistantPlaceholder.id ? nextAssistantMessage : message)));
+      setSelectedEvalSignal(null);
     } catch (error) {
       setMessages((previousMessages) => previousMessages.map((message) =>
         message.id === assistantPlaceholder.id
@@ -93,9 +100,19 @@ function App() {
               content: 'Unable to reach the SCARAG API.',
               confidence: 'Offline',
               citations: [{ id: `${assistantPlaceholder.id}-offline`, title: 'Connection issue', snippet: 'The backend did not respond.', link: '#' }],
+              evaluation: {
+                signals: [{ key: 'offline', label: 'Eval unavailable', status: 'info' }],
+                details: {
+                  offline: {
+                    title: 'Evaluation diagnostics',
+                    lines: ['Diagnostics unavailable because the backend request failed.'],
+                  },
+                },
+              },
             }
           : message,
       ));
+      setSelectedEvalSignal('offline');
     } finally {
       setLoading(false);
     }
@@ -337,6 +354,31 @@ function App() {
         </div>
 
         <div className="drawer-content">
+          <section className="eval-surface" aria-label="Evaluation output">
+            <div className="eval-header-row">
+              <p className="eyebrow">Evaluation</p>
+              <span className="eval-hint">Optional</span>
+            </div>
+
+            {activeEvalSignals.length ? (
+              <div className="eval-chip-row">
+                {activeEvalSignals.map((signal) => (
+                  <button
+                    type="button"
+                    key={signal.key}
+                    className={`eval-chip status-${signal.status} ${activeEvalKey === signal.key ? 'active' : ''}`}
+                    onClick={() => setSelectedEvalSignal((current) => (current === signal.key ? null : signal.key))}
+                    aria-expanded={activeEvalKey === signal.key}
+                  >
+                    {signal.label}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <p className="eval-empty">No per-response evaluation diagnostics were emitted.</p>
+            )}
+          </section>
+
           {activeMessage?.citations?.length ? (
             activeMessage.citations.map((citation) => (
               <article key={citation.id} className="citation-card">
@@ -350,6 +392,25 @@ function App() {
               <p>No evidence has been surfaced yet.</p>
               <span>Retrieved citations and low-confidence flags will appear here.</span>
             </div>
+          )}
+
+          {Object.keys(activeEvalDetails).length > 0 && (
+            <details className="eval-advanced">
+              <summary>Advanced eval diagnostics</summary>
+
+              {activeEvalKey && activeEvalDetails[activeEvalKey] ? (
+                <article className="eval-details">
+                  <h4>{activeEvalDetails[activeEvalKey].title}</h4>
+                  <ul>
+                    {activeEvalDetails[activeEvalKey].lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                </article>
+              ) : (
+                <p className="eval-advanced-hint">Select an evaluation chip above to inspect detailed diagnostics.</p>
+              )}
+            </details>
           )}
 
           <div className="drawer-metrics">

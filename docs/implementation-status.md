@@ -25,6 +25,7 @@ This document tracks implementation progress for the framework surfaces describe
 - Tabular grounding baseline now includes schema-style fallback guardrails, PDF-table limits, and spreadsheet row-faithfulness through chunk metadata.
 - Generation now exposes a baseline grounded-answer contract: structured abstention reason codes and citation shaping aligned to the evidence units directly used in the answer.
 - API responses now expose a stable `contract_version` and repository docs now include migration notes for envelope field evolution.
+- Fallback scaffold behavior is now integration-tested for priority ordering: explicit FAQ mapping overrides intent matching, and generic fallback remains the terminal default.
 
 ## Update Rule
 When a roadmap target moves to partial or implemented, update this file and the capability matrix in README in the same change set.

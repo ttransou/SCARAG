@@ -339,6 +339,25 @@ The offline evaluator now reports:
 * tabular_answer_success_rate
 * tabular_abstention_correctness
 
+## Reference UI and Developer Workflow Surfacing
+
+Evaluation outputs should be surfaced at two levels:
+
+### Per-response (reference UI)
+
+* Surface evaluation output beside citations as compact status indicators.
+* Keep indicators clickable so developers/reviewers can select diagnostic context.
+* Keep detailed diagnostics in a collapsed advanced section under citations so answer-first UX remains uncluttered.
+* Use explicit two-step disclosure for details (select indicator, then expand advanced section).
+* Treat per-response eval surfaces as review aids, not primary user content.
+
+### Aggregate (developer workflow)
+
+* Run offline evaluation using scripts/run_eval.py for repeatable aggregate metrics.
+* Use eval/reports/*.json for machine-readable regression comparisons and eval/reports/*.md for human review.
+* When debugging a single answer, start from that response's clickable eval indicators, then correlate with aggregate report trends.
+* Keep UI-level per-response cues and offline aggregate reports aligned so triage can move from symptom to metric to root cause.
+
 These metrics are in addition to hit rate, MRR, context precision, provenance completeness, abstention rate, and tabular grounding compliance.
 
 ## **Recommended Dataset Fields**

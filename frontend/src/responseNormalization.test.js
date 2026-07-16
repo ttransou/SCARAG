@@ -7,6 +7,20 @@ test('normalizeAssistantResponse prefers modern citations payload', () => {
   const normalized = normalizeAssistantResponse(
     {
       answer: 'Grounded answer',
+      message: {
+        generation: {
+          grounding_policy: 'extractive',
+          abstained: false,
+          reason_code: null,
+          used_context_count: 2,
+        },
+        provenance_validation: {
+          complete: true,
+          source_validation: { valid: 2, total: 2 },
+          citation_validation: { valid: 1, total: 1 },
+          citation_quality: { quality_rate: 1.0 },
+        },
+      },
       citations: [
         {
           title: 'Policy',
@@ -29,6 +43,10 @@ test('normalizeAssistantResponse prefers modern citations payload', () => {
   assert.equal(normalized.content, 'Grounded answer');
   assert.equal(normalized.confidence, 'high');
   assert.equal(normalized.score, 0.91);
+  assert.deepEqual(normalized.evaluation.signals, [
+    { key: 'provenance', label: 'Provenance pass', status: 'pass' },
+    { key: 'generation', label: 'Generation grounded', status: 'pass' },
+  ]);
   assert.deepEqual(normalized.citations, [
     {
       id: '42-0',
@@ -73,4 +91,5 @@ test('normalizeAssistantResponse handles missing evidence payloads', () => {
   assert.equal(normalized.confidence, 'Low');
   assert.equal(normalized.score, null);
   assert.deepEqual(normalized.citations, []);
+  assert.deepEqual(normalized.evaluation, { signals: [], details: {} });
 });

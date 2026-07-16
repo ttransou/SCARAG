@@ -26,6 +26,28 @@ These are reference defaults, not framework requirements. Implementers may repla
 - exact citation ordering beyond the visible/collapsed split
 - how source links are generated
 
+## Framework vs Brand Customization: Do/Don't
+
+Use this list to keep framework-contract behavior intact while allowing implementation branding.
+
+Do:
+
+- keep answer-first rendering and source-on-demand evidence inspection
+- preserve evidence provenance fields (`title`, `document`, `snippet`, and stable citation identity)
+- keep confidence visible on assistant answers
+- retain access to collapsed/hidden evidence when the backend provides it
+- customize typography, spacing, iconography, and component styling to match brand
+- replace FAQ copy, helper text, and navigation labels with implementation language
+
+Don't:
+
+- hide or remove provenance surfaces when an answer is shown
+- silently drop citations that were emitted as visible evidence by the backend
+- relabel `abstain`/low-confidence responses as high-confidence claims
+- treat legacy `sources` fallback behavior as the primary API contract
+- couple framework docs to implementation-only brand assets or campaign copy
+- require implementation-specific analytics/feedback persistence in framework baseline UX
+
 ## Local UI State
 
 The current reference UI keeps the following visible shell state in the component:
@@ -64,3 +86,17 @@ Answer rendering supports:
 A thumbs up/down control and optional free-text feedback field are part of the reference scaffold.
 
 Persisting that feedback is implementation-specific.
+
+## Evaluation Output UX Pattern
+
+- Evaluation output should be discoverable per response but visually minimal by default.
+- Evaluation affordances should live with citations/evidence surfaces rather than the answer body.
+- Use compact, clickable indicators to select diagnostic context.
+- Keep detailed diagnostics in a collapsed advanced section under citations so detail reveal is two-step and intentional.
+- Keep evaluation disclosure optional so non-evaluation users can ignore it without losing core answer/citation workflow.
+
+## FAQ and Feedback Asset Policy
+
+- FAQ entries in the reference UI are starter template content and should be configurable assets in domain implementations.
+- FAQ configurability may be file-backed, CMS-backed, or service-backed, as long as framework contract surfaces remain intact.
+- Feedback controls are baseline scaffold elements; storage, routing, and governance are implementation-specific configurable capabilities.
