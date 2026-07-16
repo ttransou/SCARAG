@@ -336,6 +336,8 @@ The offline evaluator now reports:
 * confidence_alignment_rate
 * lifecycle_exclusion_compliance
 * tabular_row_term_match_rate
+* tabular_answer_success_rate
+* tabular_abstention_correctness
 
 These metrics are in addition to hit rate, MRR, context precision, provenance completeness, abstention rate, and tabular grounding compliance.
 

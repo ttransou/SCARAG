@@ -90,37 +90,37 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [x] Implemented: Define extraction confidence tiers and baseline mapping from extraction_method.
 - [x] Implemented: Add temporal decay support in confidence scoring.
 - [x] Implemented: Add intent-based confidence boosting/penalties using framework-level intent signals only (no domain-specific policy enforcement in core).
-- [ ] Design/specification: Conflict-handling policy for contradictory evidence sources.
+- [x] Implemented: Document conflict-handling policy for contradictory evidence sources.
 - [x] Implemented: Provenance fields in citations exist with completeness enforcement in API emission.
-- [ ] Roadmap target: Add citation quality checks (snippet adequacy, source traceability, duplicate policy).
+- [x] Implemented (baseline): Add citation quality checks (snippet adequacy, source traceability, duplicate policy).
 - [ ] Roadmap target (deferred; profile configs not yet active): Add domain confidence overlays in profile configs.
 
 ### 7. Tabular Grounding
-- [ ] Partial: Table intent detection exists via thesaurus intent group.
-- [ ] Partial: Abstention when tabular intent has no tabular evidence is implemented.
+- [x] Implemented (baseline): Table intent detection exists via thesaurus intent group.
+- [x] Implemented (baseline): Abstention when tabular intent has no tabular evidence is implemented.
 - [x] Implemented: Enforce strict row-grounded answering for tabular intent.
 - [x] Implemented: Add matched-row evidence selection and trace output.
-- [ ] Roadmap target: Define schema-style fallback policy and hard guardrails.
-- [ ] Partial: XLSX/XLS ingestion path exists; row-faithfulness guarantees are incomplete.
-- [ ] Roadmap target: Define explicit PDF table behavior and limits for grounded tabular answers.
-- [ ] Roadmap target: Add evaluation coverage for tabular intent success and abstention correctness.
+- [x] Implemented (baseline): Define schema-style fallback policy and hard guardrails.
+- [x] Implemented (baseline): XLSX/XLS ingestion preserves sheet-local row-faithfulness through chunk metadata.
+- [x] Implemented (baseline): Define explicit PDF table behavior and limits for grounded tabular answers.
+- [x] Implemented (baseline): Add evaluation coverage for tabular intent success and abstention correctness.
 
 ### 8. Generation
 - [X] Implemented: Extractive mode baseline.
 - [X] Implemented: Mock mode baseline.
 - [ ] Partial: Live adapter hook exists as placeholder response.
 - [ ] Future extension: Provider-specific live integration is implementation-owned, not framework-core.
-- [ ] Roadmap target: Define grounded answer contract (allowed synthesis boundaries and citation obligations).
-- [ ] Partial: Abstention messages exist; policy taxonomy and reason codes are missing.
-- [ ] Partial: Citation shaping exists in API; generation-citation coupling is shallow.
+- [x] Implemented (baseline): Define grounded answer contract (allowed synthesis boundaries and citation obligations).
+- [x] Implemented (baseline): Abstention messages exist with policy taxonomy and reason codes.
+- [x] Implemented (baseline): Citation shaping exists in API with generation-citation coupling.
 
 ### 9. API / Response Contract
 - [X] Implemented: /api/health and /api/chat endpoints exist.
 - [X] Implemented: Response envelope includes message, citations_summary, citations, collapsed_citations, answer, confidence.
-- [ ] Partial: Legacy payload compatibility exists in UI normalization path (sources fallback), not fully contract-tested.
+- [x] Implemented (baseline): Legacy payload compatibility exists in UI normalization path (sources fallback) and is contract-tested.
 - [x] Implemented: Add explicit contract tests for envelope fields and type stability.
 - [x] Implemented: Add tests for citation summary count semantics and collapsed-citation behavior.
-- [ ] Roadmap target: Version contract changes with documented migration notes when fields evolve.
+- [x] Implemented (baseline): Version contract changes with documented migration notes when fields evolve.
 
 ### 10. Reference UI
 - [X] Implemented: Answer-first display with source drawer pattern.

@@ -1,2 +1,2 @@
-{"id":"drift-taxonomy-wording","query":"matrix row metric for alpha","is_tabular_intent":true,"expected_tabular_terms":["alpha"],"expected_confidence":"low"}
+{"id":"drift-taxonomy-wording","query":"matrix row metric for alpha","is_tabular_intent":true,"expected_tabular_terms":["alpha"],"expected_confidence":"low","expected_tabular_outcome":"answer"}
 {"id":"drift-lifecycle-freshness-guard","query":"latest control ownership","excluded_sources":["archive","legacy"],"is_tabular_intent":false}

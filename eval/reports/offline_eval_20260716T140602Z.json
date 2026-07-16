@@ -1,0 +1,28 @@
+{
+  "timestamp": "20260716T140602Z",
+  "datasets": [
+    "eval/datasets/canonical.jsonl",
+    "eval/datasets/regression.jsonl",
+    "eval/datasets/drift.jsonl"
+  ],
+  "sample_count": 7,
+  "metrics": {
+    "hit_rate_at_k": 0.0,
+    "mrr_at_k": 0.0,
+    "context_precision_at_k": 0.0,
+    "provenance_completeness": 1.0,
+    "abstention_rate": 1.0,
+    "tabular_grounding_compliance": 1.0,
+    "confidence_alignment_rate": 0.5,
+    "lifecycle_exclusion_compliance": 1.0,
+    "tabular_row_term_match_rate": 0.0,
+    "tabular_answer_success_rate": 0.0,
+    "tabular_abstention_correctness": 1.0
+  },
+  "config": {
+    "top_k": 5,
+    "min_retrieval_score": 0.25,
+    "generation_mode": "extractive",
+    "data_path": "data"
+  }
+}

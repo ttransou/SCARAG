@@ -236,29 +236,54 @@ def _parse_pptx(path: Path) -> tuple[str, list[dict[str, Any]], list[dict[str, A
     return "\n\n".join(slide_blocks), table_metadata, image_markers
 
 
+def _looks_like_spreadsheet_header(cells: list[str]) -> bool:
+    if len(cells) < 2:
+        return False
+
+    alpha_cells = sum(1 for cell in cells if any(char.isalpha() for char in cell))
+    numeric_like_cells = sum(
+        1
+        for cell in cells
+        if cell.replace(".", "", 1).isdigit() or cell.replace("-", "", 1).isdigit()
+    )
+    return alpha_cells >= max(1, len(cells) // 2) and numeric_like_cells == 0
+
+
 def _parse_xlsx(path: Path) -> tuple[str, list[dict[str, Any]]]:
     workbook = load_workbook(path, read_only=True, data_only=True)
     sheets = []
     table_metadata: list[dict[str, Any]] = []
+    line_cursor = 1
     for sheet in workbook.worksheets:
         rows = []
+        row_cells: list[list[str]] = []
         for row in sheet.iter_rows(values_only=True):
             cleaned = [str(value).strip() for value in row if value is not None and str(value).strip()]
             if cleaned:
+                row_cells.append(cleaned)
                 rows.append(" | ".join(cleaned))
         if rows:
             sheets.append("\n".join(rows))
 
-            header_fields = [item.strip() for item in rows[0].split("|")]
+            has_header = _looks_like_spreadsheet_header(row_cells[0])
+            header_fields = row_cells[0] if has_header else []
+            line_start_index = line_cursor
+            line_end_index = line_cursor + len(rows) - 1
             table_metadata.append(
                 {
                     "table_id": f"xlsx_{sheet.title}",
                     "row_count": len(rows),
-                    "column_count": len(header_fields),
+                    "column_count": len(row_cells[0]),
                     "header_fields": header_fields,
+                    "has_header": has_header,
                     "sheet_name": sheet.title,
+                    "line_start_index": line_start_index,
+                    "line_end_index": line_end_index,
+                    "data_row_start_index": 2 if has_header else 1,
+                    "data_row_end_index": len(rows),
                 }
             )
+            line_cursor = line_end_index + 1
     return "\n\n".join(sheets), table_metadata
 
 
@@ -269,8 +294,10 @@ def _parse_xls_with_xlrd(path: Path) -> tuple[str, list[dict[str, Any]]]:
     workbook = xlrd.open_workbook(str(path))
     sheets = []
     table_metadata: list[dict[str, Any]] = []
+    line_cursor = 1
     for sheet in workbook.sheets():
         rows = []
+        row_cells: list[list[str]] = []
         for row_index in range(sheet.nrows):
             cleaned = [
                 str(value).strip()
@@ -278,20 +305,30 @@ def _parse_xls_with_xlrd(path: Path) -> tuple[str, list[dict[str, Any]]]:
                 if str(value).strip()
             ]
             if cleaned:
+                row_cells.append(cleaned)
                 rows.append(" | ".join(cleaned))
         if rows:
             sheets.append("\n".join(rows))
 
-            header_fields = [item.strip() for item in rows[0].split("|")]
+            has_header = _looks_like_spreadsheet_header(row_cells[0])
+            header_fields = row_cells[0] if has_header else []
+            line_start_index = line_cursor
+            line_end_index = line_cursor + len(rows) - 1
             table_metadata.append(
                 {
                     "table_id": f"xls_{sheet.name}",
                     "row_count": len(rows),
-                    "column_count": len(header_fields),
+                    "column_count": len(row_cells[0]),
                     "header_fields": header_fields,
+                    "has_header": has_header,
                     "sheet_name": sheet.name,
+                    "line_start_index": line_start_index,
+                    "line_end_index": line_end_index,
+                    "data_row_start_index": 2 if has_header else 1,
+                    "data_row_end_index": len(rows),
                 }
             )
+            line_cursor = line_end_index + 1
     return "\n\n".join(sheets), table_metadata
 
 

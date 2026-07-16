@@ -71,7 +71,7 @@ When the user submits a non-empty prompt:
 When the response arrives:
 
 1. the assistant placeholder is replaced with the answer payload
-2. citations are normalized to a small reference-card structure
+2. citations are normalized to a small reference-card structure, preferring `citations` and falling back to legacy `sources` when present
 3. confidence and score are copied into the assistant message
 
 If the request fails, the assistant placeholder is replaced with an offline state and a connection-failure citation stub.
@@ -123,5 +123,7 @@ Those behaviors are intentionally left to implementation-specific layers.
 ## 7. Contract Coupling
 
 This state model is coupled to the backend response shape documented in [reference-ui-contract.md](reference-ui-contract.md).
+
+The reference frontend also preserves a narrow legacy-compatibility path for older payloads that provide `sources` instead of `citations`.
 
 If either the frontend state shape or the backend response envelope changes, update both documents in the same change set.

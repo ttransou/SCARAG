@@ -4,7 +4,7 @@ from typing import Any
 
 from scarag.confidence import resolve_confidence
 from scarag.config import RagConfig
-from scarag.generation.answerer import generate_answer
+from scarag.generation.answerer import generate_answer_result
 from scarag.ingestion.loader import load_documents
 from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus, retrieve_chunks
 from scarag.provenance import (
@@ -42,6 +42,26 @@ _CONFIG = RagConfig()
 _THESAURUS = load_thesaurus(_CONFIG)
 _CHUNK_CACHE: list[dict[str, Any]] | None = None
 _ALLOWED_CONFIDENCE_LABELS = {"high", "low", "abstain"}
+_CONTRACT_VERSION = "1.0"
+
+
+def _select_generation_citations(
+    context: list[dict[str, Any]],
+    cited_chunk_ids: list[str],
+) -> list[dict[str, Any]]:
+    if not cited_chunk_ids:
+        return []
+
+    cited_id_set = {str(value).strip() for value in cited_chunk_ids if str(value).strip()}
+    ordered_context: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for chunk in context:
+        chunk_id = str(chunk.get("chunk_id", "")).strip()
+        if not chunk_id or chunk_id not in cited_id_set or chunk_id in seen:
+            continue
+        ordered_context.append(chunk)
+        seen.add(chunk_id)
+    return ordered_context
 
 
 def _normalize_confidence_label(label: Any) -> str:
@@ -84,6 +104,7 @@ def health() -> dict[str, Any]:
         "status": "ok",
         "service": "SCARAG",
         "mode": _CONFIG.generation_mode,
+        "contract_version": _CONTRACT_VERSION,
         "chunks_indexed": len(chunks),
     }
 
@@ -94,6 +115,7 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
     if not query:
         response_text = "Please provide a query."
         return {
+            "contract_version": _CONTRACT_VERSION,
             "message": {
                 "text": response_text,
                 "citations_summary": {
@@ -119,15 +141,17 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
     )
     answer_context = grounded_chunks if tabular_query else ranked_chunks
     enforced_context, source_enforcement = filter_complete_source_chunks(answer_context)
-    response_text = generate_answer(
+    generation_result = generate_answer_result(
         query,
         enforced_context,
         mode=_CONFIG.generation_mode,
         tabular_intent=tabular_query,
     )
+    response_text = generation_result.text
 
-    raw_citations = [_to_citation(chunk, index) for index, chunk in enumerate(enforced_context)]
-    citations, citation_enforcement = filter_complete_citations(raw_citations)
+    citation_context = _select_generation_citations(enforced_context, generation_result.cited_chunk_ids)
+    raw_citations = [_to_citation(chunk, index) for index, chunk in enumerate(citation_context)]
+    citations, citation_enforcement = filter_complete_citations(raw_citations, enforced_context)
     visible = citations[:3]
     collapsed = citations[3:]
 
@@ -163,11 +187,19 @@ def chat(payload: dict[str, Any]) -> dict[str, Any]:
     confidence = _normalize_confidence_label(confidence_result.label)
 
     return {
+        "contract_version": _CONTRACT_VERSION,
         "message": {
             "text": response_text,
             "citations_summary": summary,
             "tabular_trace": tabular_trace,
             "provenance_validation": provenance_validation,
+            "generation": {
+                "grounding_policy": generation_result.grounding_policy,
+                "abstained": generation_result.abstained,
+                "reason_code": generation_result.reason_code,
+                "used_context_count": generation_result.used_context_count,
+                "cited_chunk_ids": generation_result.cited_chunk_ids,
+            },
         },
         "citations": visible,
         "collapsed_citations": collapsed,

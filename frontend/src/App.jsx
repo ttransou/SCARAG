@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { normalizeAssistantResponse } from './responseNormalization';
 
 const INITIAL_MESSAGE = {
   id: 1,
@@ -76,24 +77,11 @@ function App() {
       });
 
       const data = await response.json();
-      const answer = data.answer || data.message?.text || 'No answer returned.';
-      const citations = Array.isArray(data.citations)
-        ? data.citations
-        : Array.isArray(data.sources)
-          ? data.sources
-          : [];
+      const normalizedResponse = normalizeAssistantResponse(data, assistantPlaceholder.id);
 
       const nextAssistantMessage = {
         ...assistantPlaceholder,
-        content: answer,
-        citations: citations.slice(0, 5).map((citation, index) => ({
-          id: `${assistantPlaceholder.id}-${index}`,
-          title: citation.title || citation.document || `Source ${index + 1}`,
-          snippet: citation.snippet || citation.text || citation.content || 'Retrieved evidence will appear here.',
-          link: citation.link || '#',
-        })),
-        confidence: data.confidence || (citations.length ? 'High' : 'Low'),
-        score: data.score ?? null,
+        ...normalizedResponse,
       };
 
       setMessages((previousMessages) => previousMessages.map((message) => (message.id === assistantPlaceholder.id ? nextAssistantMessage : message)));

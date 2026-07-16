@@ -12,17 +12,36 @@ It does not define implementation-specific polish, deployment branding, or appli
 
 `POST /api/chat` returns a JSON object with these top-level fields:
 
+- `contract_version`: stable framework contract version for the response envelope
 - `message`: the UI-facing message envelope
 - `citations`: the visible citation cards
 - `collapsed_citations`: citation cards hidden by default but still available on demand
 - `confidence`: the current answer confidence signal
 - `answer`: the full answer text shown in the conversation viewport
 
+Legacy compatibility note:
+
+- the reference frontend still accepts a legacy `sources` array as a fallback when `citations` is absent;
+- framework-owned contract tests should continue to prefer the modern `citations` payload and treat `sources` support as compatibility behavior, not the primary contract.
+
+## Contract Versioning
+
+Current baseline contract version: `1.0`
+
+Versioning rules:
+
+- increment the major version when a consumer would need code changes to remain compatible;
+- increment the minor version when adding optional fields without breaking existing consumers;
+- preserve documented compatibility fallbacks during migration windows where feasible.
+
+Migration notes for field evolution are tracked in [docs/api-contract-migrations.md](api-contract-migrations.md).
+
 The `message` object contains:
 
 - `text`: the rendered answer text
 - `citations_summary`: a compact summary of visible and hidden evidence
 - `tabular_trace` (optional): grounding diagnostics for tabular-intent handling
+- `generation` (optional baseline diagnostics): generation grounding policy, abstention state, reason code, and cited chunk ids
 
 `citations_summary` contains:
 
@@ -30,6 +49,14 @@ The `message` object contains:
 - `total_count`: total number of retrieved citations
 - `hidden_count`: number of hidden citations
 - `label`: short human-readable summary
+
+`generation` contains:
+
+- `grounding_policy`: baseline generation mode such as extractive grounding or tabular row grounding
+- `abstained`: whether the answer generator refused to make a grounded claim
+- `reason_code`: stable baseline reason code when abstention or placeholder behavior occurs
+- `used_context_count`: number of evidence units directly used to produce the answer text
+- `cited_chunk_ids`: ordered chunk ids used by the generator and expected to align with citation shaping
 
 ## Assistant Message State
 
@@ -57,8 +84,24 @@ Required behavior:
 - collapse low-signal evidence by default when there is no separate hidden set
 - keep collapsed evidence available for later inspection
 - display an empty state when no evidence has been surfaced yet
+- keep the visible and collapsed citation sets aligned with the evidence units the generator actually used for the answer, not the full retrieved set
 
 The drawer should always show the currently active assistant message's evidence, not a blended history of all answers.
+
+## Citation Quality Policy
+
+The backend baseline now enforces citation-quality checks before citations reach the visible or collapsed sets.
+
+Required baseline checks:
+
+- snippet adequacy: a citation snippet must contain enough textual substance to let a reviewer inspect support rather than a fragmentary token or label;
+- source traceability: a citation's chunk identifier and document path must resolve back to a retained source chunk;
+- duplicate policy: repeated citations for the same chunk/document pair should collapse to the first retained citation rather than appear multiple times.
+
+UI consequence:
+
+- the reference frontend should treat backend-visible and backend-collapsed citations as already quality-screened;
+- if contradictory evidence survives quality checks, show the separate citations rather than merging them into one card.
 
 ## Provenance Display
 
@@ -92,6 +135,19 @@ Recommended meanings:
 - `ready` / `reviewing sources...`: transient UI states used during interaction
 
 Implementations may add more specific confidence labels, but the reference UI should preserve the textual signal and show it in the answer chrome and evidence drawer.
+
+## Abstention Reason Codes
+
+The baseline framework now emits stable generation-level reason codes for abstention or placeholder states.
+
+Current baseline codes:
+
+- `no_supporting_evidence`: no retained evidence survived into generation
+- `usable_evidence_missing`: evidence was retrieved but had no usable text for extractive grounding
+- `tabular_row_evidence_missing`: tabular intent lacked matched row evidence
+- `live_adapter_unconfigured`: live mode was requested but no implementation adapter exists in framework baseline
+
+These codes are diagnostics for contract consumers and evaluation. They do not replace the top-level `confidence` label.
 
 ## Baseline Versus Implementation-Specific
 

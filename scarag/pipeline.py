@@ -288,10 +288,83 @@ def _header_candidates_from_metadata(table_metadata: Any) -> set[str]:
     return candidates
 
 
+def _tabular_sections_from_explicit_ranges(text: str, table_metadata: Any) -> list[dict[str, Any]]:
+    if not isinstance(table_metadata, list):
+        return []
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if not lines:
+        return []
+
+    explicit_sections: list[dict[str, Any]] = []
+    for record in table_metadata:
+        if not isinstance(record, dict):
+            continue
+
+        try:
+            line_start_index = int(record.get("line_start_index", 0))
+            line_end_index = int(record.get("line_end_index", 0))
+        except (TypeError, ValueError):
+            continue
+
+        if line_start_index <= 0 or line_end_index < line_start_index:
+            continue
+
+        section_lines = lines[line_start_index - 1 : line_end_index]
+        if not section_lines:
+            continue
+
+        has_header = bool(record.get("has_header"))
+        header_fields = record.get("header_fields")
+        cleaned_header_fields = (
+            [str(field).strip() for field in header_fields if str(field).strip()]
+            if isinstance(header_fields, list)
+            else []
+        )
+
+        header: str | None = None
+        rows = section_lines
+        header_source = "none"
+        if has_header and len(section_lines) >= 2:
+            header = section_lines[0]
+            rows = section_lines[1:]
+            header_source = "table_metadata" if cleaned_header_fields else "explicit_range"
+        elif not has_header:
+            header = None
+            rows = section_lines
+
+        if not rows:
+            continue
+
+        explicit_sections.append(
+            {
+                "header": header,
+                "rows": rows,
+                "section_index": len(explicit_sections),
+                "header_source": header_source,
+                "header_repeat_index": 1,
+                "header_repeat_count": 1,
+                "section_row_count": len(rows),
+                "table_id": str(record.get("table_id", "")).strip() or None,
+                "sheet_name": str(record.get("sheet_name", "")).strip() or None,
+                "line_start_index": line_start_index,
+                "line_end_index": line_end_index,
+                "data_row_start_index": int(record.get("data_row_start_index", 2 if has_header else 1)),
+                "data_row_end_index": int(record.get("data_row_end_index", len(section_lines))),
+            }
+        )
+
+    return explicit_sections
+
+
 def _tabular_sections(text: str, table_metadata: Any) -> list[dict[str, Any]]:
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     if not lines:
         return []
+
+    explicit_sections = _tabular_sections_from_explicit_ranges(text, table_metadata)
+    if explicit_sections:
+        return explicit_sections
 
     known_headers = _header_candidates_from_metadata(table_metadata)
     if known_headers:
@@ -448,6 +521,14 @@ def _chunk_tabular(
         header_repeat_index = int(section.get("header_repeat_index", 0))
         header_repeat_count = int(section.get("header_repeat_count", 0))
         section_row_count = int(section.get("section_row_count", len(rows)))
+        table_id = section.get("table_id")
+        sheet_name = section.get("sheet_name")
+        section_line_start = int(section.get("line_start_index", 1))
+        section_line_end = int(
+            section.get("line_end_index", section_line_start + len(rows) + (1 if header else 0) - 1)
+        )
+        data_row_start_index = int(section.get("data_row_start_index", 2 if header else 1))
+        data_row_end_index = int(section.get("data_row_end_index", len(rows)))
 
         for start in range(0, len(rows), step):
             window = rows[start : start + safe_rows]
@@ -464,14 +545,22 @@ def _chunk_tabular(
             row_end = start + len(window)
             chunk_meta = {
                 "section_index": section_index,
+                "table_id": table_id,
+                "sheet_name": sheet_name,
                 "has_header": bool(header),
                 "header_text": str(header) if header else None,
                 "header_source": header_source,
                 "header_repeat_index": header_repeat_index,
                 "header_repeat_count": header_repeat_count,
                 "section_row_count": section_row_count,
+                "section_line_start_index": section_line_start,
+                "section_line_end_index": section_line_end,
+                "section_data_row_start_index": data_row_start_index,
+                "section_data_row_end_index": data_row_end_index,
                 "row_start_index": row_start,
                 "row_end_index": row_end,
+                "absolute_row_start_index": section_line_start + (1 if header else 0) + row_start - 1,
+                "absolute_row_end_index": section_line_start + (1 if header else 0) + row_end - 1,
                 "window_row_count": len(window),
                 "overlap_rows": safe_overlap,
             }
@@ -573,10 +662,19 @@ def build_chunk_index(
                     "tabular_chunk_metadata": chunk_meta,
                     "prose_chunk_metadata": None,
                     "source_unit_kind": "tabular_section",
-                    "source_unit_local_id": f"{source_unit_id}:table:{int(chunk_meta.get('section_index', 0))}",
+                    "source_unit_local_id": (
+                        f"{source_unit_id}:table:{chunk_meta['table_id']}"
+                        if chunk_meta.get("table_id")
+                        else f"{source_unit_id}:table:{int(chunk_meta.get('section_index', 0))}"
+                    ),
                     "source_unit_boundary": {
-                        "unit_start_row_index": 1,
-                        "unit_end_row_index": int(chunk_meta.get("section_row_count", 0)),
+                        "unit_start_row_index": int(chunk_meta.get("section_data_row_start_index", 1)),
+                        "unit_end_row_index": int(
+                            chunk_meta.get(
+                                "section_data_row_end_index",
+                                chunk_meta.get("section_row_count", 0),
+                            )
+                        ),
                     },
                 }
                 for chunk_text, chunk_meta in raw_tabular_chunks

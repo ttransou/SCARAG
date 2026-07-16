@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from openpyxl import Workbook
+
+from scarag.ingestion.loader import load_documents
 from scarag.config import RagConfig
 from scarag.pipeline import build_chunk_index
 
@@ -87,3 +90,43 @@ def test_tabular_chunking_row_overlap_without_header(tmp_path: Path) -> None:
     assert len(chunks) == 2
     assert chunk_texts[0] == "1001 | alpha | open\n1002 | beta | closed"
     assert chunk_texts[1] == "1002 | beta | closed\n1003 | gamma | pending"
+
+
+def test_spreadsheet_chunking_preserves_sheet_local_row_boundaries(tmp_path: Path) -> None:
+    workbook = Workbook()
+    north = workbook.active
+    north.title = "North"
+    north.append([1001, "alpha", "open"])
+    north.append([1002, "beta", "closed"])
+
+    south = workbook.create_sheet("South")
+    south.append([2001, "gamma", "pending"])
+    south.append([2002, "delta", "open"])
+
+    workbook_path = tmp_path / "multi-sheet.xlsx"
+    workbook.save(workbook_path)
+
+    documents = load_documents(tmp_path)
+    xlsx_doc = next(doc for doc in documents if doc["source"].endswith("multi-sheet.xlsx"))
+    config = RagConfig(
+        lifecycle_state_path=str(tmp_path / "lifecycle-state.json"),
+        table_chunk_rows=1,
+        table_overlap_rows=0,
+    )
+
+    chunks = build_chunk_index([xlsx_doc], config)
+
+    assert len(chunks) == 4
+    assert [chunk["tabular_chunk_metadata"]["sheet_name"] for chunk in chunks] == [
+        "North",
+        "North",
+        "South",
+        "South",
+    ]
+    assert [chunk["tabular_chunk_metadata"]["row_start_index"] for chunk in chunks] == [1, 2, 1, 2]
+    assert [chunk["tabular_chunk_metadata"]["absolute_row_start_index"] for chunk in chunks] == [1, 2, 3, 4]
+    assert len({chunk["source_unit_local_id"] for chunk in chunks}) == 2
+    assert chunks[0]["source_unit_boundary"]["unit_start_row_index"] == 1
+    assert chunks[0]["source_unit_boundary"]["unit_end_row_index"] == 2
+    assert chunks[2]["source_unit_boundary"]["unit_start_row_index"] == 1
+    assert chunks[2]["source_unit_boundary"]["unit_end_row_index"] == 2

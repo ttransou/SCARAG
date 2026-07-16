@@ -104,6 +104,26 @@ def _tabular_terms_matched(
     return True, bool(expected_terms & observed_terms)
 
 
+def _tabular_outcome_matches(
+    sample: dict[str, Any],
+    grounded_chunks: list[dict[str, Any]],
+    answer: str,
+) -> tuple[bool, str, bool]:
+    expected = str(sample.get("expected_tabular_outcome", "")).strip().lower()
+    if not expected:
+        return False, "", False
+
+    normalized_answer = answer.strip().lower()
+    abstained = "cannot" in normalized_answer or "abstain" in normalized_answer
+    succeeded = any(bool(chunk.get("tabular_grounded")) for chunk in grounded_chunks)
+
+    if expected == "answer":
+        return True, expected, succeeded and not abstained
+    if expected == "abstain":
+        return True, expected, abstained
+    return False, expected, False
+
+
 def _write_markdown_report(path: Path, metrics: dict[str, float], sample_count: int) -> None:
     lines = [
         "# SCARAG Offline Evaluation",
@@ -166,6 +186,10 @@ def main() -> None:
     lifecycle_compliant = 0
     tabular_term_expected = 0
     tabular_term_matched = 0
+    tabular_answer_expected = 0
+    tabular_answer_matched = 0
+    tabular_abstention_expected = 0
+    tabular_abstention_matched = 0
 
     for sample in rows:
         query = str(sample.get("query", "")).strip()
@@ -246,6 +270,21 @@ def main() -> None:
             if tabular_term_ok:
                 tabular_term_matched += 1
 
+        has_tabular_outcome, expected_tabular_outcome, tabular_outcome_ok = _tabular_outcome_matches(
+            sample,
+            grounded_chunks,
+            answer,
+        )
+        if has_tabular_outcome:
+            if expected_tabular_outcome == "answer":
+                tabular_answer_expected += 1
+                if tabular_outcome_ok:
+                    tabular_answer_matched += 1
+            elif expected_tabular_outcome == "abstain":
+                tabular_abstention_expected += 1
+                if tabular_outcome_ok:
+                    tabular_abstention_matched += 1
+
     sample_count = len(rows)
     metrics = {
         "hit_rate_at_k": _safe_div(hit_count, sample_count),
@@ -257,6 +296,11 @@ def main() -> None:
         "confidence_alignment_rate": _safe_div(confidence_matched, max(1, confidence_expected)),
         "lifecycle_exclusion_compliance": _safe_div(lifecycle_compliant, max(1, lifecycle_expected)),
         "tabular_row_term_match_rate": _safe_div(tabular_term_matched, max(1, tabular_term_expected)),
+        "tabular_answer_success_rate": _safe_div(tabular_answer_matched, max(1, tabular_answer_expected)),
+        "tabular_abstention_correctness": _safe_div(
+            tabular_abstention_matched,
+            max(1, tabular_abstention_expected),
+        ),
     }
 
     reports_dir = Path("eval/reports")

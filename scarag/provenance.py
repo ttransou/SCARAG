@@ -1,9 +1,68 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
+import re
 from typing import Any
 
 REQUIRED_SOURCE_FIELDS = ("source", "chunk_id")
 REQUIRED_CITATION_FIELDS = ("id", "title", "document", "snippet", "score", "chunk_id", "doc_type")
+_MIN_SNIPPET_CHARS = 10
+_MIN_SNIPPET_TOKENS = 2
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+
+
+def _normalize_text(value: Any) -> str:
+    return " ".join(str(value or "").split()).strip().lower()
+
+
+def _token_count(value: Any) -> int:
+    return len(_TOKEN_RE.findall(str(value or "")))
+
+
+def _build_trace_index(chunks: Iterable[dict[str, Any]]) -> dict[str, str]:
+    trace_index: dict[str, str] = {}
+    for chunk in chunks:
+        chunk_id = str(chunk.get("chunk_id", "")).strip()
+        source = str(chunk.get("source", "")).strip()
+        if chunk_id and source and chunk_id not in trace_index:
+            trace_index[chunk_id] = source
+    return trace_index
+
+
+def _citation_quality_failures(
+    citation: dict[str, Any],
+    *,
+    trace_index: dict[str, str],
+) -> list[str]:
+    failures: list[str] = []
+
+    snippet = str(citation.get("snippet", "")).strip()
+    if len(snippet) < _MIN_SNIPPET_CHARS or _token_count(snippet) < _MIN_SNIPPET_TOKENS:
+        failures.append("snippet_adequacy")
+
+    chunk_id = str(citation.get("chunk_id", "")).strip()
+    document = str(citation.get("document", "")).strip()
+    if trace_index:
+        expected_document = trace_index.get(chunk_id)
+        if not expected_document or expected_document != document:
+            failures.append("source_traceability")
+
+    return failures
+
+
+def _empty_quality_report() -> dict[str, Any]:
+    return {
+        "total": 0,
+        "valid": 0,
+        "invalid": 0,
+        "dropped_by_reason": {
+            "snippet_adequacy": 0,
+            "source_traceability": 0,
+            "duplicate_policy": 0,
+        },
+        "duplicate_groups": 0,
+        "quality_rate": 1.0,
+    }
 
 
 def _missing_fields(record: dict[str, Any], required: tuple[str, ...]) -> list[str]:
@@ -64,6 +123,40 @@ def validate_citation_fields(citations: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def validate_citation_quality(
+    citations: list[dict[str, Any]],
+    source_chunks: list[dict[str, Any]],
+) -> dict[str, Any]:
+    report = _empty_quality_report()
+    report["total"] = len(citations)
+    trace_index = _build_trace_index(source_chunks)
+    seen_keys: set[tuple[str, str]] = set()
+
+    for citation in citations:
+        duplicate_key = (
+            str(citation.get("chunk_id", "")).strip(),
+            _normalize_text(citation.get("document")),
+        )
+        failures = _citation_quality_failures(citation, trace_index=trace_index)
+        if duplicate_key in seen_keys:
+            failures.append("duplicate_policy")
+        elif duplicate_key[0] and duplicate_key[1]:
+            seen_keys.add(duplicate_key)
+
+        if failures:
+            report["invalid"] += 1
+            if "duplicate_policy" in failures:
+                report["duplicate_groups"] += 1
+            for failure in failures:
+                report["dropped_by_reason"][failure] += 1
+        else:
+            report["valid"] += 1
+
+    total = report["total"]
+    report["quality_rate"] = 1.0 if total == 0 else round(report["valid"] / total, 4)
+    return report
+
+
 def filter_complete_source_chunks(chunks: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     retained: list[dict[str, Any]] = []
     dropped = 0
@@ -86,7 +179,10 @@ def filter_complete_source_chunks(chunks: list[dict[str, Any]]) -> tuple[list[di
     }
 
 
-def filter_complete_citations(citations: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def filter_complete_citations(
+    citations: list[dict[str, Any]],
+    source_chunks: list[dict[str, Any]] | None = None,
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     retained: list[dict[str, Any]] = []
     dropped = 0
     missing_by_field = {field: 0 for field in REQUIRED_CITATION_FIELDS}
@@ -100,20 +196,48 @@ def filter_complete_citations(citations: list[dict[str, Any]]) -> tuple[list[dic
             continue
         retained.append(citation)
 
-    return retained, {
+    quality_report = validate_citation_quality(retained, source_chunks or [])
+    quality_retained: list[dict[str, Any]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    trace_index = _build_trace_index(source_chunks or [])
+
+    for citation in retained:
+        duplicate_key = (
+            str(citation.get("chunk_id", "")).strip(),
+            _normalize_text(citation.get("document")),
+        )
+        failures = _citation_quality_failures(citation, trace_index=trace_index)
+        is_duplicate = duplicate_key in seen_keys
+        if is_duplicate:
+            failures.append("duplicate_policy")
+        elif duplicate_key[0] and duplicate_key[1]:
+            seen_keys.add(duplicate_key)
+
+        if failures:
+            continue
+        quality_retained.append(citation)
+
+    return quality_retained, {
         "input_total": len(citations),
-        "retained": len(retained),
-        "dropped": dropped,
+        "retained": len(quality_retained),
+        "dropped": dropped + quality_report["invalid"],
         "missing_by_field": missing_by_field,
+        "quality": quality_report,
     }
 
 
 def validate_provenance(chunks: list[dict[str, Any]], citations: list[dict[str, Any]]) -> dict[str, Any]:
     source_validation = validate_source_fields(chunks)
     citation_validation = validate_citation_fields(citations)
-    complete = source_validation["invalid"] == 0 and citation_validation["invalid"] == 0
+    citation_quality = validate_citation_quality(citations, chunks)
+    complete = (
+        source_validation["invalid"] == 0
+        and citation_validation["invalid"] == 0
+        and citation_quality["invalid"] == 0
+    )
     return {
         "complete": complete,
         "source_validation": source_validation,
         "citation_validation": citation_validation,
+        "citation_quality": citation_quality,
     }

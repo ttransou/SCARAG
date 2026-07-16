@@ -21,6 +21,10 @@ This document tracks implementation progress for the framework surfaces describe
 - Retrieval scoring applies configurable boilerplate penalties using persisted repetition signals.
 - Retrieval scoring applies table-aware boosting tied to tabular intent and row/header matches.
 - Retrieval diagnostics output mode includes query terms, pruning counters, and final rank explanations.
+- Citation-quality enforcement is implemented before API citation emission.
+- Tabular grounding baseline now includes schema-style fallback guardrails, PDF-table limits, and spreadsheet row-faithfulness through chunk metadata.
+- Generation now exposes a baseline grounded-answer contract: structured abstention reason codes and citation shaping aligned to the evidence units directly used in the answer.
+- API responses now expose a stable `contract_version` and repository docs now include migration notes for envelope field evolution.
 
 ## Update Rule
 When a roadmap target moves to partial or implemented, update this file and the capability matrix in README in the same change set.

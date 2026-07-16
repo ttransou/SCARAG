@@ -163,6 +163,10 @@ def test_loader_parses_pptx_and_xlsx_content() -> None:
     assert "Alpha" in xlsx_doc["text"]
     assert isinstance(pptx_doc.get("table_metadata"), list)
     assert isinstance(xlsx_doc.get("table_metadata"), list)
+    assert xlsx_doc["table_metadata"][0]["sheet_name"] == sheet.title
+    assert xlsx_doc["table_metadata"][0]["line_start_index"] == 1
+    assert xlsx_doc["table_metadata"][0]["line_end_index"] == 2
+    assert xlsx_doc["table_metadata"][0]["has_header"] is True
 
 
 def test_loader_uses_xls_fallback_parser_when_openpyxl_rejects_file(monkeypatch) -> None:
@@ -175,7 +179,27 @@ def test_loader_uses_xls_fallback_parser_when_openpyxl_rejects_file(monkeypatch)
             raise InvalidFileException("legacy xls")
 
         monkeypatch.setattr(loader_module, "load_workbook", _raise_invalid)
-        monkeypatch.setattr(loader_module, "_parse_xls_with_xlrd", lambda _: "Name | Value\nAlpha | 1")
+        monkeypatch.setattr(
+            loader_module,
+            "_parse_xls_with_xlrd",
+            lambda _: (
+                "Name | Value\nAlpha | 1",
+                [
+                    {
+                        "table_id": "xls_Sheet1",
+                        "row_count": 2,
+                        "column_count": 2,
+                        "header_fields": ["Name", "Value"],
+                        "has_header": True,
+                        "sheet_name": "Sheet1",
+                        "line_start_index": 1,
+                        "line_end_index": 2,
+                        "data_row_start_index": 2,
+                        "data_row_end_index": 2,
+                    }
+                ],
+            ),
+        )
 
         documents = load_documents(temp_path)
 
@@ -183,6 +207,7 @@ def test_loader_uses_xls_fallback_parser_when_openpyxl_rejects_file(monkeypatch)
     assert documents[0]["source"].endswith("legacy.xls")
     assert documents[0]["extraction_method"] == "xls_parser"
     assert "Alpha" in documents[0]["text"]
+    assert documents[0]["table_metadata"][0]["sheet_name"] == "Sheet1"
 
 
 def test_loader_extracts_docx_table_metadata() -> None:

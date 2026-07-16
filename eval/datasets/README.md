@@ -15,5 +15,6 @@ Each row may include:
 - excluded_sources: source substrings that must not appear in retrieved evidence
 - is_tabular_intent: whether tabular grounding policy should apply
 - expected_tabular_terms: row/header terms expected in grounded tabular evidence
+- expected_tabular_outcome: expected tabular result (`answer` for grounded row output, `abstain` when row-grounded answering should refuse)
 
 These are framework-level starter rows and should be adapted to your corpus.

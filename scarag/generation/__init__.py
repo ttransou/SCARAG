@@ -1,3 +1,3 @@
-from .answerer import generate_answer
+from .answerer import GenerationResult, generate_answer, generate_answer_result
 
-__all__ = ["generate_answer"]
+__all__ = ["GenerationResult", "generate_answer", "generate_answer_result"]
