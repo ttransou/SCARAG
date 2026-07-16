@@ -25,10 +25,28 @@ button {
   cursor: pointer;
 }
 
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 1000;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid #1d4ed8;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.skip-link:focus-visible {
+  top: 0.75rem;
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 226px minmax(0, 1fr) 340px;
+  grid-template-columns: 236px minmax(0, 1fr) 352px;
   background: var(--bg);
   color: var(--text);
   transition: background 180ms ease, color 180ms ease;
@@ -73,7 +91,7 @@ button {
 .sidebar,
 .evidence-drawer,
 .workspace-panel {
-  padding: 1rem;
+  padding: 1.1rem;
   backdrop-filter: blur(18px);
 }
 
@@ -82,7 +100,7 @@ button {
   background: var(--panel);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
 }
 
 .sidebar-collapsed {
@@ -151,6 +169,10 @@ button {
   border-color: var(--accent);
 }
 
+.nav-link[aria-disabled='true'] {
+  opacity: 0.68;
+}
+
 .sidebar-card,
 .message-card,
 .citation-card,
@@ -185,7 +207,7 @@ button {
 .workspace-panel {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 1rem;
   background: transparent;
   min-width: 0;
 }
@@ -195,6 +217,8 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
+  padding: 0.35rem 0.1rem 0.9rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .workspace-header h2 {
@@ -215,13 +239,13 @@ button {
 .conversation-stack {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.9rem;
   overflow: auto;
-  padding-right: 0.25rem;
+  padding: 0.15rem 0.3rem 0.25rem;
 }
 
 .message-card {
-  padding: 0.9rem;
+  padding: 1.05rem;
 }
 
 .message-card.user {
@@ -233,12 +257,13 @@ button {
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
-  margin-bottom: 0.65rem;
+  margin-bottom: 0.75rem;
 }
 
 .message-role {
   font-weight: 700;
   color: var(--accent);
+  letter-spacing: 0.02em;
 }
 
 .message-badges {
@@ -279,7 +304,7 @@ button {
 
 .answer-list {
   padding-left: 1.1rem;
-  margin: 0.35rem 0 0.55rem;
+  margin: 0.4rem 0 0.65rem;
 }
 
 .answer-body code {
@@ -292,7 +317,7 @@ button {
 .message-actions {
   display: flex;
   gap: 0.45rem;
-  margin-top: 0.7rem;
+  margin-top: 0.85rem;
 }
 
 .feedback-button {
@@ -381,11 +406,13 @@ button {
   display: flex;
   gap: 0.6rem;
   margin-top: auto;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
 }
 
 .prompt-form input {
   flex: 1;
-  padding: 0.8rem 0.95rem;
+  padding: 0.85rem 1rem;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--panel-strong);
@@ -393,10 +420,11 @@ button {
 }
 
 .prompt-form button {
-  padding: 0.8rem 1.05rem;
+  padding: 0.85rem 1.15rem;
   background: var(--accent-strong);
   color: white;
   border: none;
+  font-weight: 650;
 }
 
 .prompt-form button:disabled {
@@ -409,7 +437,7 @@ button {
   background: var(--panel);
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0.95rem;
 }
 
 .evidence-drawer.collapsed {
@@ -436,17 +464,17 @@ button {
 .drawer-content {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.75rem;
 }
 
 .eval-surface {
   border: 1px solid var(--border);
   background: var(--panel-strong);
   border-radius: 16px;
-  padding: 0.85rem;
+  padding: 0.9rem;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
+  gap: 0.65rem;
 }
 
 .eval-header-row {
@@ -544,17 +572,23 @@ button {
 .citation-card,
 .empty-state,
 .metric-card {
-  padding: 0.85rem;
+  padding: 0.95rem;
 }
 
 .citation-card h4 {
-  margin: 0 0 0.35rem;
+  margin: 0 0 0.45rem;
 }
 
 .citation-card a {
+  display: inline-flex;
+  margin-top: 0.55rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 999px;
   color: var(--accent);
   text-decoration: none;
   font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--chip);
 }
 
 .sidebar-card,
@@ -588,6 +622,19 @@ button {
   filter: brightness(1.05);
 }
 
+.icon-button:focus-visible,
+.ghost-button:focus-visible,
+.nav-link:focus-visible,
+.feedback-button:focus-visible,
+.prompt-form button:focus-visible,
+.prompt-form input:focus-visible,
+.citation-card a:focus-visible,
+.eval-chip:focus-visible,
+.eval-advanced summary:focus-visible {
+  outline: 3px solid #f59e0b;
+  outline-offset: 2px;
+}
+
 .nav-link,
 .ghost-button,
 .feedback-button,
@@ -599,13 +646,13 @@ button {
 .drawer-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.6rem;
+  gap: 0.7rem;
 }
 
 .metric-card {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.3rem;
 }
 
 .metric-card span {
@@ -617,6 +664,17 @@ button {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 @media (max-width: 1024px) {

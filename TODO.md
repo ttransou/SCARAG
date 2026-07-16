@@ -128,11 +128,11 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [X] Implemented: Feedback placeholder and FAQ template view exist.
 - [X] Implemented: Theme toggle exists.
 - [x] Implemented (baseline): FAQ starts as template scaffold and should be configurable by domain; feedback remains scaffolded with implementation-specific configurable persistence/routing.
-- [ ] Roadmap target: Improve accessibility (keyboard nav, aria review, contrast checks, focus order).
+- [x] Implemented (baseline): Improved accessibility across keyboard navigation, ARIA state/labels, focus-order affordances, and high-contrast focus-visible treatment in the reference UI.
 - [x] Implemented (baseline): Implementation-neutral UI guidance now includes explicit framework-vs-brand customization do/don't rules.
 - [x] Implemented (baseline): Evaluation outputs are documented as minimal, clickable per-response indicators near citations, with optional detail disclosure and aggregate offline workflow alignment.
 - [ ] Design/specification: UI polish tasks that do not affect framework contract fidelity.
-- [ ] Design/specification: Tighten spacing, hierarchy, and affordances in the reference shell.
+- [x] Implemented (design polish): Tightened spacing, hierarchy, and affordances in the reference shell without changing framework contract behavior.
 - [ ] Design/specification: Add a short visual polish checklist for implementers.
 - [ ] Design/specification: Clarify framework-neutral vs implementation-branded UI tweaks.
 - [ ] Design/specification: Capture follow-up tweaks to drawer behavior, badge treatment, and empty states after additional shell usage.

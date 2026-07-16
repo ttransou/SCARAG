@@ -224,6 +224,26 @@ FAQ and feedback scaffold policy:
 - FAQ starts as a reference template in framework baseline and should be configurable by domain implementations to match use-case language, workflows, and policy context
 - feedback controls are baseline scaffold UX; persistence targets, routing, analytics, and moderation are implementation-specific configurable assets
 
+## Accessibility Baseline
+
+The reference UI baseline includes practical accessibility requirements for keyboard and assistive-technology users.
+
+Required baseline behaviors:
+
+- keyboard-accessible primary controls for sidebar, drawer, theme toggle, feedback, and evaluation chips
+- skip link support to jump directly to main content
+- explicit ARIA relationships on toggles (for example `aria-expanded` plus `aria-controls`)
+- active navigation state exposure via `aria-current` where applicable
+- clear focus-visible treatment on interactive controls with strong contrast
+- meaningful control labels for icon-only and emoji-only actions
+- reduced-motion support via `prefers-reduced-motion`
+
+Review guidance:
+
+- keep focus order aligned with visual reading order
+- avoid hiding essential answer/citation functionality behind pointer-only interactions
+- preserve accessibility semantics when replacing reference styling with implementation branding
+
 ## Change Rule
 
 If the backend response shape or the reference UI evidence surface changes, update this document in the same change set.

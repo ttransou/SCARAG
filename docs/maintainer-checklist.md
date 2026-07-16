@@ -54,6 +54,20 @@ If fallback template entries or loader selection logic changed, verify all appli
 - Run API tests when API surface or contract behavior changed.
 - Prefer absolute paths in CI or terminal checks when working-directory drift is likely.
 
+## 6.1 Accessibility smoke checklist (manual)
+
+Run this quick walkthrough when UI interactions, layout, or styles change:
+
+- Use keyboard-only navigation (`Tab`, `Shift+Tab`, `Enter`, `Space`) from page load through all primary controls.
+- Verify the skip link appears on focus and moves focus to main content.
+- Verify visible focus indicators remain high-contrast in each theme variant.
+- Verify sidebar and evidence drawer toggles update expanded/collapsed state and remain keyboard operable.
+- Verify active navigation state is clear and focus order follows visual reading order.
+- Verify feedback buttons announce and reflect pressed state correctly.
+- Verify eval chips are keyboard operable and advanced diagnostics remain collapsed by default.
+- Verify interactive placeholder controls marked unavailable do not trap focus or misreport availability.
+- Verify motion-sensitive settings by testing with reduced-motion preference enabled.
+
 ## 7. Release-note hygiene
 
 - Summarize user-visible behavior changes in plain language.

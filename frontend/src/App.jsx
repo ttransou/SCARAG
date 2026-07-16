@@ -199,10 +199,18 @@ function App() {
   }
 
   return (
-    <div className={`app-shell theme-${theme}`}>
+    <>
+      <a className="skip-link" href="#main-content">Skip to main content</a>
+      <div className={`app-shell theme-${theme}`}>
       <aside className={`sidebar ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
         <div className="sidebar-top">
-          <button className="icon-button" onClick={() => setSidebarCollapsed((value) => !value)} aria-label="Toggle sidebar">
+          <button
+            className="icon-button"
+            onClick={() => setSidebarCollapsed((value) => !value)}
+            aria-label="Toggle sidebar"
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="primary-sidebar-nav"
+          >
             ☰
           </button>
           <div className="brand-block">
@@ -211,25 +219,39 @@ function App() {
           </div>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Primary navigation">
-          <button type="button" className={`nav-link ${activeView === 'chat' ? 'active' : ''}`} onClick={() => setActiveView('chat')}>
+        <nav id="primary-sidebar-nav" className="sidebar-nav" aria-label="Primary navigation">
+          <button
+            type="button"
+            className={`nav-link ${activeView === 'chat' ? 'active' : ''}`}
+            onClick={() => setActiveView('chat')}
+            aria-current={activeView === 'chat' ? 'page' : undefined}
+          >
             New Chat
           </button>
-          <button type="button" className="nav-link">Chat History</button>
-          <button type="button" className={`nav-link ${activeView === 'faq' ? 'active' : ''}`} onClick={() => setActiveView('faq')}>
+          <button type="button" className="nav-link" aria-disabled="true" title="Template placeholder">
+            Chat History
+          </button>
+          <button
+            type="button"
+            className={`nav-link ${activeView === 'faq' ? 'active' : ''}`}
+            onClick={() => setActiveView('faq')}
+            aria-current={activeView === 'faq' ? 'page' : undefined}
+          >
             FAQ
           </button>
-          <button type="button" className="nav-link">Support</button>
+          <button type="button" className="nav-link" aria-disabled="true" title="Template placeholder">
+            Support
+          </button>
         </nav>
 
         <div className="sidebar-card">
           <p className="eyebrow">API health</p>
-          <p className="status-pill">Online</p>
+          <p className="status-pill" role="status" aria-live="polite">Online</p>
           <p className="helper-text">Responses stay linked to retrieved evidence.</p>
         </div>
       </aside>
 
-      <main className="workspace-panel">
+      <main id="main-content" className="workspace-panel">
         <header className="workspace-header">
           <div>
             <p className="eyebrow">Transparent RAG experience</p>
@@ -244,10 +266,17 @@ function App() {
                 const nextIndex = (order.indexOf(currentTheme) + 1) % order.length;
                 return order[nextIndex];
               })}
+              aria-label="Cycle theme"
             >
               Theme: {theme}
             </button>
-            <button type="button" className="ghost-button" onClick={() => setDrawerOpen((value) => !value)}>
+            <button
+              type="button"
+              className="ghost-button"
+              onClick={() => setDrawerOpen((value) => !value)}
+              aria-expanded={drawerOpen}
+              aria-controls="evidence-drawer"
+            >
               {drawerOpen ? 'Hide evidence' : 'Show evidence'}
             </button>
           </div>
@@ -274,7 +303,7 @@ function App() {
           </section>
         ) : (
           <>
-            <section className="conversation-stack" aria-live="polite">
+            <section className="conversation-stack" aria-live="polite" aria-busy={loading}>
               {messages.map((message) => (
                 <article key={message.id} className={`message-card ${message.role}`}>
                   <div className="message-meta">
@@ -298,10 +327,22 @@ function App() {
                   {message.role === 'assistant' && (
                     <>
                       <div className="message-actions">
-                        <button type="button" className={`feedback-button ${message.feedback === 'up' ? 'active' : ''}`} onClick={() => handleFeedback(message.id, 'up')}>
+                        <button
+                          type="button"
+                          className={`feedback-button ${message.feedback === 'up' ? 'active' : ''}`}
+                          onClick={() => handleFeedback(message.id, 'up')}
+                          aria-label="Thumbs up feedback"
+                          aria-pressed={message.feedback === 'up'}
+                        >
                           👍
                         </button>
-                        <button type="button" className={`feedback-button ${message.feedback === 'down' ? 'active' : ''}`} onClick={() => handleFeedback(message.id, 'down')}>
+                        <button
+                          type="button"
+                          className={`feedback-button ${message.feedback === 'down' ? 'active' : ''}`}
+                          onClick={() => handleFeedback(message.id, 'down')}
+                          aria-label="Thumbs down feedback"
+                          aria-pressed={message.feedback === 'down'}
+                        >
                           👎
                         </button>
                       </div>
@@ -329,6 +370,7 @@ function App() {
 
             <form onSubmit={handleSubmit} className="prompt-form">
               <input
+                id="prompt-input"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder="Ask a question about your corpus"
@@ -342,13 +384,20 @@ function App() {
         )}
       </main>
 
-      <aside className={`evidence-drawer ${drawerOpen ? 'open' : 'collapsed'}`}>
+      <aside id="evidence-drawer" className={`evidence-drawer ${drawerOpen ? 'open' : 'collapsed'}`}>
         <div className="drawer-header">
           <div>
             <p className="eyebrow">Evidence</p>
             <h3>Trace</h3>
           </div>
-          <button type="button" className="icon-button" onClick={() => setDrawerOpen((value) => !value)} aria-label="Toggle evidence drawer">
+          <button
+            type="button"
+            className="icon-button"
+            onClick={() => setDrawerOpen((value) => !value)}
+            aria-label="Toggle evidence drawer"
+            aria-expanded={drawerOpen}
+            aria-controls="evidence-drawer"
+          >
             ↔
           </button>
         </div>
@@ -425,7 +474,8 @@ function App() {
           </div>
         </div>
       </aside>
-    </div>
+      </div>
+    </>
   );
 }
 

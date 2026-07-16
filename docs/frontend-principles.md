@@ -95,6 +95,14 @@ Persisting that feedback is implementation-specific.
 - Keep detailed diagnostics in a collapsed advanced section under citations so detail reveal is two-step and intentional.
 - Keep evaluation disclosure optional so non-evaluation users can ignore it without losing core answer/citation workflow.
 
+## Accessibility Guidance
+
+- Keep keyboard navigation first-class for all interactive surfaces in the shell.
+- Use semantic labels and ARIA state attributes on toggles, icon controls, and pressed-state actions.
+- Preserve visible focus indicators with sufficient contrast across theme variants.
+- Keep tab order aligned with answer-first reading flow and evidence inspection flow.
+- Respect reduced-motion user preferences for transitions/animations.
+
 ## FAQ and Feedback Asset Policy
 
 - FAQ entries in the reference UI are starter template content and should be configurable assets in domain implementations.
