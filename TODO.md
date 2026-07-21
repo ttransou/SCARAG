@@ -138,14 +138,14 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Design/specification: Capture follow-up tweaks to drawer behavior, badge treatment, and empty states after additional shell usage.
 
 ### 11. Evaluation
-- [ ] Partial: Offline runner and report generation implemented in scripts/run_eval.py.
+- [x] Implemented (baseline): Offline runner and report generation implemented in scripts/run_eval.py.
 - [x] Implemented: Create canonical, regression, and drift dataset seeds under eval/datasets.
 - [ ] Roadmap target: Add implementation-specific validation datasets and benchmark runners in domain/implementation branches.
 - [X] Implemented: hit_rate, MRR, context_precision, provenance_completeness, abstention_rate, tabular_grounding_compliance metrics in runner.
 - [x] Implemented: Add lifecycle exclusion compliance and confidence/tabular expectation alignment metrics in offline evaluator.
-- [ ] Roadmap target: Add faithfulness_proxy and correctness_proxy metrics or remove references consistently.
-- [ ] Roadmap target: Add dataset sanity checks and malformed-row reporting.
-- [ ] Partial: reset_eval_workspace.py exists for cleanup; extend docs for repeatable test-data cleanup protocol.
+- [x] Implemented (baseline): Add lexical faithfulness_proxy and expectation-field correctness_proxy metrics in offline evaluator.
+- [x] Implemented (baseline): Add dataset sanity checks and malformed-row reporting in offline evaluator outputs.
+- [x] Implemented (baseline): reset_eval_workspace.py cleanup workflow is documented for repeatable test-data reset protocol.
 
 ### 12. Domain Profiles / NLP Tailoring
 - [ ] Partial: profiles/default.json loads through RagConfig.from_profile.
@@ -163,8 +163,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [X] Implemented: Contributor guide and maintainer checklist exist.
 - [ ] Partial: Architecture docs set now exists (implementation-status, metadata-model, lifecycle-design, retrieval-design, confidence-framework, tabular-grounding).
 - [ ] Roadmap target: Keep README capability statuses synchronized with code changes in every feature PR.
-- [ ] Roadmap target: Add deployment notes with explicit framework-owned vs implementation-owned boundaries.
-- [ ] Roadmap target: Add environment assumptions section (Python, Node, corpus layout, startup commands).
+- [x] Implemented (baseline): Added deployment notes with explicit framework-owned vs implementation-owned boundaries.
+- [x] Implemented (baseline): Added environment assumptions section (Python, Node, corpus layout, startup commands).
 - [ ] Roadmap target: Record core rationale for each bibliography item in context of SCARAG design goals.
 - [ ] Roadmap target: Ensure new framework claims and implementation notes are backed by citations where appropriate.
 

@@ -338,6 +338,7 @@ The offline evaluator now reports:
 * tabular_row_term_match_rate
 * tabular_answer_success_rate
 * tabular_abstention_correctness
+* dataset_sanity summary with malformed-row reporting (`invalid_json`, `invalid_row_shape`, `missing_query`)
 
 ## Reference UI and Developer Workflow Surfacing
 
@@ -357,6 +358,48 @@ Evaluation outputs should be surfaced at two levels:
 * Use eval/reports/*.json for machine-readable regression comparisons and eval/reports/*.md for human review.
 * When debugging a single answer, start from that response's clickable eval indicators, then correlate with aggregate report trends.
 * Keep UI-level per-response cues and offline aggregate reports aligned so triage can move from symptom to metric to root cause.
+
+### Repeatable test-data cleanup protocol
+
+Use `scripts/reset_eval_workspace.py` to keep evaluation runs reproducible between iterations.
+
+Recommended sequence:
+
+1. Preview cleanup candidates:
+
+```bash
+python scripts/reset_eval_workspace.py --dry-run
+```
+
+2. Remove generated evaluation reports and temporary eval docs:
+
+```bash
+python scripts/reset_eval_workspace.py --confirm
+```
+
+3. Optional: also remove dataset JSONL files when rebuilding dataset seeds from scratch:
+
+```bash
+python scripts/reset_eval_workspace.py --confirm --delete-datasets
+```
+
+4. Optional: also clear default re-ingestion state when the test run requires a clean lifecycle state:
+
+```bash
+python scripts/reset_eval_workspace.py --confirm --clear-default-state
+```
+
+5. Verify a clean baseline before rerunning evaluation:
+
+```bash
+python scripts/reset_eval_workspace.py --dry-run
+```
+
+Notes:
+
+* `--dry-run` never deletes files and should be used before destructive cleanup.
+* `--delete-datasets` is for intentional dataset rebuild workflows; avoid it for normal report-only resets.
+* `--test-docs-path` can be overridden when temporary evaluation corpus paths differ from the default `data/_eval_tmp`.
 
 These metrics are in addition to hit rate, MRR, context precision, provenance completeness, abstention rate, and tabular grounding compliance.
 

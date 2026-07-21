@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -14,22 +15,224 @@ from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus
 from scarag.provenance import validate_provenance
 from scarag.tabular_grounding import apply_tabular_grounding
 
+_TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
+_PROXY_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "for",
+    "from",
+    "if",
+    "in",
+    "into",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "their",
+    "then",
+    "there",
+    "these",
+    "this",
+    "to",
+    "was",
+    "were",
+    "with",
+}
 
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
+
+def _issue(dataset: Path, line_number: int, code: str, detail: str) -> dict[str, Any]:
+    return {
+        "dataset": str(dataset),
+        "line": line_number,
+        "code": code,
+        "detail": detail,
+    }
+
+
+def _normalize_string_list(value: Any, field_name: str) -> tuple[list[str], list[dict[str, Any]]]:
+    issues: list[dict[str, Any]] = []
+    if value is None:
+        return [], issues
+    if isinstance(value, str):
+        return [value], issues
+    if isinstance(value, list):
+        normalized: list[str] = []
+        for index, item in enumerate(value):
+            if isinstance(item, str):
+                if item.strip():
+                    normalized.append(item)
+                continue
+            issues.append(
+                {
+                    "code": "invalid_field_item_type",
+                    "detail": f"{field_name}[{index}] expected string",
+                }
+            )
+        return normalized, issues
+    issues.append(
+        {
+            "code": "invalid_field_type",
+            "detail": f"{field_name} expected string or list of strings",
+        }
+    )
+    return [], issues
+
+
+def _validate_row(dataset: Path, line_number: int, sample: dict[str, Any]) -> tuple[bool, dict[str, Any], list[dict[str, Any]]]:
+    issues: list[dict[str, Any]] = []
+    normalized = dict(sample)
+
+    query = sample.get("query")
+    if not isinstance(query, str) or not query.strip():
+        issues.append(_issue(dataset, line_number, "missing_query", "query must be a non-empty string"))
+
+    for field in [
+        "expected_sources",
+        "excluded_sources",
+        "relevant_chunk_ids",
+        "expected_tabular_terms",
+        "expected_answer_terms",
+        "expected_answer_contains",
+    ]:
+        normalized_values, field_issues = _normalize_string_list(sample.get(field), field)
+        normalized[field] = normalized_values
+        for field_issue in field_issues:
+            issues.append(_issue(dataset, line_number, field_issue["code"], field_issue["detail"]))
+
+    expected_confidence = sample.get("expected_confidence")
+    if expected_confidence is not None:
+        if not isinstance(expected_confidence, str):
+            issues.append(
+                _issue(
+                    dataset,
+                    line_number,
+                    "invalid_field_type",
+                    "expected_confidence expected string",
+                )
+            )
+            normalized["expected_confidence"] = ""
+        else:
+            normalized["expected_confidence"] = expected_confidence
+
+    expected_tabular_outcome = sample.get("expected_tabular_outcome")
+    if expected_tabular_outcome is not None:
+        if not isinstance(expected_tabular_outcome, str):
+            issues.append(
+                _issue(
+                    dataset,
+                    line_number,
+                    "invalid_field_type",
+                    "expected_tabular_outcome expected string",
+                )
+            )
+            normalized["expected_tabular_outcome"] = ""
+        else:
+            normalized["expected_tabular_outcome"] = expected_tabular_outcome
+
+    tabular_intent_value = sample.get("is_tabular_intent")
+    if tabular_intent_value is None:
+        normalized["is_tabular_intent"] = False
+    elif isinstance(tabular_intent_value, bool):
+        normalized["is_tabular_intent"] = tabular_intent_value
+    elif isinstance(tabular_intent_value, str):
+        lowered = tabular_intent_value.strip().lower()
+        if lowered in {"true", "1", "yes", "y"}:
+            normalized["is_tabular_intent"] = True
+        elif lowered in {"false", "0", "no", "n"}:
+            normalized["is_tabular_intent"] = False
+        else:
+            issues.append(
+                _issue(
+                    dataset,
+                    line_number,
+                    "invalid_field_type",
+                    "is_tabular_intent expected boolean-compatible value",
+                )
+            )
+            normalized["is_tabular_intent"] = False
+    else:
+        issues.append(
+            _issue(
+                dataset,
+                line_number,
+                "invalid_field_type",
+                "is_tabular_intent expected boolean-compatible value",
+            )
+        )
+        normalized["is_tabular_intent"] = False
+
+    is_valid = not any(issue["code"] == "missing_query" for issue in issues)
+    return is_valid, normalized, issues
+
+
+def _read_jsonl(path: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    issues: list[dict[str, Any]] = []
+    total_nonempty_lines = 0
+
     if not path.exists():
-        return rows
-    for line in path.read_text(encoding="utf-8").splitlines():
+        issues.append(_issue(path, 0, "missing_dataset", "dataset path does not exist"))
+        return rows, {
+            "dataset": str(path),
+            "total_nonempty_lines": total_nonempty_lines,
+            "valid_rows": 0,
+            "invalid_rows": 0,
+            "parse_errors": 0,
+            "issues": issues,
+        }
+
+    invalid_rows = 0
+    parse_errors = 0
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         stripped = line.strip()
         if not stripped:
             continue
+        total_nonempty_lines += 1
         try:
             parsed = json.loads(stripped)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as error:
+            parse_errors += 1
+            invalid_rows += 1
+            issues.append(
+                _issue(
+                    path,
+                    line_number,
+                    "invalid_json",
+                    f"JSON decode error: {error.msg}",
+                )
+            )
             continue
-        if isinstance(parsed, dict):
-            rows.append(parsed)
-    return rows
+
+        if not isinstance(parsed, dict):
+            invalid_rows += 1
+            issues.append(_issue(path, line_number, "invalid_row_shape", "row must be a JSON object"))
+            continue
+
+        is_valid, normalized, row_issues = _validate_row(path, line_number, parsed)
+        issues.extend(row_issues)
+        if not is_valid:
+            invalid_rows += 1
+            continue
+        rows.append(normalized)
+
+    summary = {
+        "dataset": str(path),
+        "total_nonempty_lines": total_nonempty_lines,
+        "valid_rows": len(rows),
+        "invalid_rows": invalid_rows,
+        "parse_errors": parse_errors,
+        "issues": issues,
+    }
+    return rows, summary
 
 
 def _is_relevant(chunk: dict[str, Any], sample: dict[str, Any]) -> bool:
@@ -49,6 +252,14 @@ def _safe_div(numerator: float, denominator: float) -> float:
     if denominator == 0:
         return 0.0
     return numerator / denominator
+
+
+def _normalized_terms(text: str) -> set[str]:
+    return {
+        match.group(0).lower()
+        for match in _TOKEN_RE.finditer(text)
+        if len(match.group(0)) >= 3 and match.group(0).lower() not in _PROXY_STOPWORDS
+    }
 
 
 def _to_citation(chunk: dict[str, Any], rank: int) -> dict[str, Any]:
@@ -124,7 +335,62 @@ def _tabular_outcome_matches(
     return False, expected, False
 
 
-def _write_markdown_report(path: Path, metrics: dict[str, float], sample_count: int) -> None:
+def _faithfulness_proxy(answer: str, context_chunks: list[dict[str, Any]]) -> tuple[bool, float]:
+    normalized_answer = answer.strip().lower()
+    if not normalized_answer:
+        return False, 0.0
+
+    # Abstentions are measured by abstention-specific metrics, not lexical faithfulness.
+    if "cannot" in normalized_answer or "abstain" in normalized_answer:
+        return False, 0.0
+
+    answer_terms = _normalized_terms(answer)
+    if not answer_terms:
+        return False, 0.0
+
+    context_terms: set[str] = set()
+    for chunk in context_chunks:
+        context_terms.update(_normalized_terms(str(chunk.get("text", ""))))
+    if not context_terms:
+        return False, 0.0
+
+    supported_terms = answer_terms & context_terms
+    return True, _safe_div(len(supported_terms), len(answer_terms))
+
+
+def _correctness_proxy(sample: dict[str, Any], answer: str) -> tuple[bool, float]:
+    expected_terms = {
+        str(value).strip().lower()
+        for value in (sample.get("expected_answer_terms") or [])
+        if str(value).strip()
+    }
+
+    raw_contains = sample.get("expected_answer_contains") or []
+    if isinstance(raw_contains, str):
+        expected_contains = [raw_contains]
+    else:
+        expected_contains = [str(value) for value in raw_contains]
+    expected_phrases = [value.strip().lower() for value in expected_contains if value.strip()]
+
+    total_expectations = len(expected_terms) + len(expected_phrases)
+    if total_expectations == 0:
+        return False, 0.0
+
+    answer_terms = _normalized_terms(answer)
+    normalized_answer = answer.strip().lower()
+
+    matched_terms = sum(1 for term in expected_terms if term in answer_terms)
+    matched_phrases = sum(1 for phrase in expected_phrases if phrase in normalized_answer)
+    matched_total = matched_terms + matched_phrases
+    return True, _safe_div(matched_total, total_expectations)
+
+
+def _write_markdown_report(
+    path: Path,
+    metrics: dict[str, float],
+    sample_count: int,
+    dataset_sanity: dict[str, Any],
+) -> None:
     lines = [
         "# SCARAG Offline Evaluation",
         "",
@@ -137,6 +403,28 @@ def _write_markdown_report(path: Path, metrics: dict[str, float], sample_count: 
     ]
     for key, value in metrics.items():
         lines.append(f"| {key} | {value:.4f} |")
+
+    lines.extend(
+        [
+            "",
+            "## Dataset Sanity",
+            "",
+            f"- datasets checked: {dataset_sanity['datasets_checked']}",
+            f"- total non-empty rows: {dataset_sanity['total_nonempty_rows']}",
+            f"- valid rows: {dataset_sanity['valid_rows']}",
+            f"- invalid rows: {dataset_sanity['invalid_rows']}",
+            f"- parse errors: {dataset_sanity['parse_errors']}",
+        ]
+    )
+
+    issue_preview = dataset_sanity.get("issue_preview", [])
+    if issue_preview:
+        lines.extend(["", "### Malformed Row Preview", "", "| Dataset | Line | Code | Detail |", "|---|---:|---|---|"])
+        for issue in issue_preview:
+            lines.append(
+                f"| {issue['dataset']} | {issue['line']} | {issue['code']} | {issue['detail']} |"
+            )
+
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -166,8 +454,41 @@ def main() -> None:
 
     datasets = [Path(path) for path in args.dataset]
     rows: list[dict[str, Any]] = []
+    dataset_summaries: list[dict[str, Any]] = []
     for dataset_path in datasets:
-        rows.extend(_read_jsonl(dataset_path))
+        dataset_rows, summary = _read_jsonl(dataset_path)
+        rows.extend(dataset_rows)
+        dataset_summaries.append(summary)
+
+    all_issues: list[dict[str, Any]] = []
+    total_nonempty_rows = 0
+    total_invalid_rows = 0
+    total_parse_errors = 0
+    for summary in dataset_summaries:
+        total_nonempty_rows += int(summary.get("total_nonempty_lines", 0))
+        total_invalid_rows += int(summary.get("invalid_rows", 0))
+        total_parse_errors += int(summary.get("parse_errors", 0))
+        all_issues.extend(summary.get("issues", []))
+
+    dataset_sanity = {
+        "datasets_checked": len(datasets),
+        "total_nonempty_rows": total_nonempty_rows,
+        "valid_rows": len(rows),
+        "invalid_rows": total_invalid_rows,
+        "parse_errors": total_parse_errors,
+        "issues": all_issues,
+        "issue_preview": all_issues[:20],
+        "per_dataset": [
+            {
+                "dataset": summary.get("dataset"),
+                "total_nonempty_lines": summary.get("total_nonempty_lines", 0),
+                "valid_rows": summary.get("valid_rows", 0),
+                "invalid_rows": summary.get("invalid_rows", 0),
+                "parse_errors": summary.get("parse_errors", 0),
+            }
+            for summary in dataset_summaries
+        ],
+    }
 
     if not rows:
         print("No evaluation rows found. Provide --dataset JSONL files.")
@@ -190,6 +511,10 @@ def main() -> None:
     tabular_answer_matched = 0
     tabular_abstention_expected = 0
     tabular_abstention_matched = 0
+    faithfulness_expected = 0
+    faithfulness_total = 0.0
+    correctness_expected = 0
+    correctness_total = 0.0
 
     for sample in rows:
         query = str(sample.get("query", "")).strip()
@@ -285,6 +610,16 @@ def main() -> None:
                 if tabular_outcome_ok:
                     tabular_abstention_matched += 1
 
+        has_faithfulness_proxy, faithfulness_score = _faithfulness_proxy(answer, answer_context)
+        if has_faithfulness_proxy:
+            faithfulness_expected += 1
+            faithfulness_total += faithfulness_score
+
+        has_correctness_proxy, correctness_score = _correctness_proxy(sample, answer)
+        if has_correctness_proxy:
+            correctness_expected += 1
+            correctness_total += correctness_score
+
     sample_count = len(rows)
     metrics = {
         "hit_rate_at_k": _safe_div(hit_count, sample_count),
@@ -301,6 +636,8 @@ def main() -> None:
             tabular_abstention_matched,
             max(1, tabular_abstention_expected),
         ),
+        "faithfulness_proxy": _safe_div(faithfulness_total, max(1, faithfulness_expected)),
+        "correctness_proxy": _safe_div(correctness_total, max(1, correctness_expected)),
     }
 
     reports_dir = Path("eval/reports")
@@ -314,6 +651,7 @@ def main() -> None:
         "datasets": [str(path) for path in datasets],
         "sample_count": sample_count,
         "metrics": metrics,
+        "dataset_sanity": dataset_sanity,
         "config": {
             "top_k": config.top_k,
             "min_retrieval_score": config.min_retrieval_score,
@@ -322,9 +660,20 @@ def main() -> None:
         },
     }
     json_path.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    _write_markdown_report(md_path, metrics, sample_count)
+    _write_markdown_report(md_path, metrics, sample_count, dataset_sanity)
 
     print(f"Evaluated {sample_count} samples across {len(datasets)} dataset(s).")
+    print(
+        "Dataset sanity: "
+        f"{dataset_sanity['valid_rows']} valid / {dataset_sanity['total_nonempty_rows']} non-empty rows, "
+        f"{dataset_sanity['invalid_rows']} invalid, {dataset_sanity['parse_errors']} parse errors."
+    )
+    if dataset_sanity["issue_preview"]:
+        print("Malformed row preview:")
+        for issue in dataset_sanity["issue_preview"][:5]:
+            print(
+                f"- {issue['dataset']}:{issue['line']} [{issue['code']}] {issue['detail']}"
+            )
     print(f"Wrote report JSON: {json_path}")
     print(f"Wrote report Markdown: {md_path}")
 

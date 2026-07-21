@@ -26,6 +26,8 @@ This document tracks implementation progress for the framework surfaces describe
 - Generation now exposes a baseline grounded-answer contract: structured abstention reason codes and citation shaping aligned to the evidence units directly used in the answer.
 - API responses now expose a stable `contract_version` and repository docs now include migration notes for envelope field evolution.
 - Fallback scaffold behavior is now integration-tested for priority ordering: explicit FAQ mapping overrides intent matching, and generic fallback remains the terminal default.
+- Deployment boundaries are now explicitly documented as framework-owned versus implementation-owned responsibilities (`docs/deployment-boundaries.md`).
+- Environment assumptions for Python/Node, corpus layout, and startup commands are now documented in `README.md`.
 
 ## Update Rule
 When a roadmap target moves to partial or implemented, update this file and the capability matrix in README in the same change set.

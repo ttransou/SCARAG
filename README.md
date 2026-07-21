@@ -108,7 +108,7 @@ graph LR
 | reference UI | Partial | frontend/src/App.jsx and styles.css implement shell, drawer, feedback scaffold | Wire feedback persistence and expand evidence interactions |
 | offline evaluation | Implemented (baseline) | scripts/run_eval.py outputs JSON/Markdown reports with retrieval/provenance/abstention/tabular/confidence expectation metrics | Add richer datasets, dataset sanity checks, and deeper governance checks |
 | domain profiles | Partial | profiles/default.json + RagConfig.from_profile | Add domain-specific profiles and confidence overlays |
-| deployment guidance | Partial | start scripts and README run path | Add deployment playbooks and cloud adapter references |
+| deployment guidance | Partial | start scripts and README run path plus docs/deployment-boundaries.md for framework-owned versus implementation-owned deployment boundaries | Add deployment playbooks and cloud adapter references |
 
 ## Operational Design Docs
 The README is intentionally philosophy-first and status-oriented. Detailed operational and implementation design is maintained in the docs set below.
@@ -121,6 +121,8 @@ The README is intentionally philosophy-first and status-oriented. Detailed opera
 - Tabular grounding design: docs/tabular-grounding.md
 - Grounded answer contract: docs/generation-contract.md
 - API contract migrations: docs/api-contract-migrations.md
+- Deployment boundaries: docs/deployment-boundaries.md
+- NLP tailoring starter guide: docs/nlp-tailoring-guide.md
 
 ## Current Public Surfaces
 - Core package: scarag/
@@ -227,7 +229,9 @@ Roadmap targets:
 ### Evaluation as Diagnosis - Status: Implemented (baseline)
 Current implementation baseline:
 - scripts/run_eval.py runs offline evaluation and writes JSON/Markdown reports in eval/reports.
-- Baseline metrics include retrieval, provenance completeness, abstention rate, tabular compliance, lifecycle exclusion compliance, confidence/tabular expectation alignment, tabular answer success, and tabular abstention correctness.
+- Baseline metrics include retrieval, provenance completeness, abstention rate, tabular compliance, lifecycle exclusion compliance, confidence/tabular expectation alignment, tabular answer success, tabular abstention correctness, plus lexical faithfulness_proxy and expectation-field correctness_proxy.
+- Dataset loading now includes sanity checks with malformed-row reporting in report outputs (`invalid_json`, `invalid_row_shape`, `missing_query`).
+- scripts/reset_eval_workspace.py provides repeatable cleanup for eval artifacts; use `--dry-run` to preview and `--confirm` to apply deletions.
 
 Roadmap targets:
 - expanded datasets in eval/datasets,
@@ -246,6 +250,8 @@ Implementation-owned surfaces:
 - deployment topology, auth, and observability,
 - domain-specific policy and ontology governance.
 
+For explicit deployment ownership boundaries, see docs/deployment-boundaries.md.
+
 ## Reality Snapshot
 - Generation modes available: extractive (default), mock, live placeholder.
 - Live mode is an adapter hook and currently returns a clear provider-not-configured message.
@@ -253,6 +259,14 @@ Implementation-owned surfaces:
 - The React frontend is a reference implementation and can be replaced by implementers.
 - Feedback capture is scaffolded in the UI but persistence wiring is not implemented.
 - API responses now include a `contract_version` field, and migration notes for response-field evolution are tracked in docs/api-contract-migrations.md.
+
+## Environment Assumptions
+- Python: a Python 3 environment is available, and local workflow assumes a project virtual environment (for example `./.venv`).
+- Python dependencies: install from `requirements.txt` before running API or tests.
+- Node.js: an LTS Node runtime is available for the reference frontend.
+- Frontend dependencies: install from `frontend/package.json` before running the UI.
+- Corpus layout: default corpus path is `data/`; evaluator datasets live under `eval/datasets`; evaluator reports are written to `eval/reports`.
+- Startup commands: baseline startup path is `bash ./start_everything.sh`; manual frontend/API startup commands are documented below.
 
 ## Run the Reference Stack (React + FastAPI)
 Quick start from repo root:
