@@ -1,6 +1,43 @@
 {
-  "schema_note": "Sample profile structure. Adapt this file to your domain and deployment needs.",
+  "schema_version": 1,
+  "profile_id": "default",
   "name": "default",
+  "display_name": "Default",
+  "description": "Generic baseline profile for schema-conscious RAG behavior.",
+  "synonyms_path": "config/synonyms.json",
+  "retrieval": {
+    "preferred_doc_types": [],
+    "lower_priority_doc_types": [],
+    "boost_terms": [],
+    "tabular_intent_terms": []
+  },
+  "lifecycle": {
+    "preferred_statuses": [
+      "active",
+      "pending_review"
+    ],
+    "excluded_statuses": [
+      "retired",
+      "deleted"
+    ],
+    "freshness_days_default": null,
+    "missing_timestamp_policy": "include"
+  },
+  "confidence": {
+    "prefer_structured_for": [],
+    "lower_confidence_when": [
+      "source_is_stale",
+      "lifecycle_status_missing",
+      "contradictory_sources_present"
+    ],
+    "abstention_triggers": [
+      "insufficient_evidence"
+    ]
+  },
+  "taxonomy": {
+    "concepts_path": null,
+    "doc_type_taxonomy_path": null
+  },
   "boilerplate_policy": {
     "allow_patterns": [],
     "block_patterns": [],

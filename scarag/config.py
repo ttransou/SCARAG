@@ -5,6 +5,12 @@ from pathlib import Path
 from typing import Any
 
 
+def _as_str_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
+
+
 @dataclass
 class RagConfig:
     data_path: str = "data"
@@ -76,7 +82,38 @@ class RagConfig:
         if profile_path.exists():
             import json
 
-            config.metadata = json.loads(profile_path.read_text(encoding="utf-8"))
+            profile_payload = json.loads(profile_path.read_text(encoding="utf-8"))
+            if isinstance(profile_payload, dict):
+                config.metadata = profile_payload
+
+                synonyms_path = profile_payload.get("synonyms_path")
+                if isinstance(synonyms_path, str) and synonyms_path.strip():
+                    config.thesaurus_path = synonyms_path.strip()
+
+                lifecycle_overlay = profile_payload.get("lifecycle")
+                if isinstance(lifecycle_overlay, dict):
+                    preferred_statuses = _as_str_list(lifecycle_overlay.get("preferred_statuses"))
+                    if preferred_statuses:
+                        config.status_allow_list = preferred_statuses
+
+                    excluded_statuses = _as_str_list(lifecycle_overlay.get("excluded_statuses"))
+                    if excluded_statuses:
+                        config.status_deny_list = excluded_statuses
+
+                    freshness_days_default = lifecycle_overlay.get("freshness_days_default")
+                    if isinstance(freshness_days_default, (int, float)) and not isinstance(
+                        freshness_days_default,
+                        bool,
+                    ):
+                        config.freshness_max_age_days = int(freshness_days_default)
+                    elif freshness_days_default is None:
+                        config.freshness_max_age_days = None
+
+                    missing_timestamp_policy = lifecycle_overlay.get("missing_timestamp_policy")
+                    if isinstance(missing_timestamp_policy, str) and missing_timestamp_policy.strip():
+                        config.freshness_missing_ts_policy = missing_timestamp_policy.strip()
+            else:
+                config.metadata = {}
         for key, value in overrides.items():
             setattr(config, key, value)
         return config
