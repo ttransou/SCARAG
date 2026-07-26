@@ -348,16 +348,32 @@ If README detail continues to grow, keep philosophy and matrix here, and move de
 
 These files are recommended next additions for active implementation clarity.
 
-## Bibliography and Attribution
-SCARAG draws on established work in retrieval-augmented generation, attribution, and evaluation.
+## Bibliography
 
-- Lewis et al. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks (2020)
-- Asai et al. Self-RAG (2023)
-- Gao et al. Retrieval-Augmented Generation for Large Language Models: A Survey (2023)
-- Es et al. RAGAS (2023)
-- Bohnet et al. Attributed Question Answering (2022)
-- Yue et al. Automatic Evaluation and Improvement of Attribution in LLMs (2023)
-- Nakano et al. WebGPT (2021)
-- Ouyang et al. Training Language Models to Follow Instructions with Human Feedback (2022)
+SCARAG is informed by work in retrieval-augmented generation, attributed question answering, RAG evaluation, and instruction-following language models.
+
+### Retrieval-Augmented Generation
+
+- Lewis, Patrick, et al. “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.” 2020.
+
+- Gao, Yunfan, et al. “Retrieval-Augmented Generation for Large Language Models: A Survey.” 2023.
+
+- Asai, Akari, et al. “Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection.” 2023.
+
+### RAG Evaluation
+
+- Es, Shahul, et al. “RAGAS: Automated Evaluation of Retrieval Augmented Generation.” 2023.
+
+### Attribution and Source Grounding
+
+- Bohnet, Bernd, et al. “Attributed Question Answering: Evaluation and Modeling for Attributed Large Language Models.” 2022.
+
+- Yue, Xiang, et al. “Automatic Evaluation of Attribution by Large Language Models.” 2023.
+
+- Nakano, Reiichiro, et al. “WebGPT: Improving the Factual Accuracy of Language Models through Web Browsing.” 2021.
+
+### Instruction-Following and Human Feedback
+
+- Ouyang, Long, et al. “Training Language Models to Follow Instructions with Human Feedback.” 2022.
 
 Where SCARAG makes claims about robustness, abstention, provenance, confidence, or evaluation design, implementation work should prefer cited literature and explicit diagnostics over unsupported assertions.
