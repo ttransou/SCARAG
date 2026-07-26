@@ -1,8 +1,53 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+
+
+_REQUIRED_ONTOLOGY_CONCEPTS = {
+    "Source",
+    "SourceUnit",
+    "EvidenceUnit",
+    "DocumentType",
+    "LifecycleStatus",
+    "Provenance",
+    "ConfidenceSignal",
+    "Citation",
+    "DomainProfile",
+    "Concept",
+}
+
+
+def _validate_ontology_path(concepts_path: str) -> None:
+    ontology_path = Path(concepts_path)
+    if not ontology_path.exists():
+        raise ValueError(f"taxonomy.concepts_path does not exist: {concepts_path}")
+
+    try:
+        ontology_payload = json.loads(ontology_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"taxonomy.concepts_path is not valid JSON: {concepts_path}") from exc
+
+    if not isinstance(ontology_payload, dict):
+        raise ValueError(f"taxonomy.concepts_path must contain a JSON object: {concepts_path}")
+
+    concepts = ontology_payload.get("concepts")
+    relationships = ontology_payload.get("core_relationships")
+    if not isinstance(concepts, list) or not isinstance(relationships, list):
+        raise ValueError(
+            "taxonomy.concepts_path must define list fields 'concepts' and 'core_relationships': "
+            f"{concepts_path}"
+        )
+
+    concept_ids = {item.get("id") for item in concepts if isinstance(item, dict)}
+    missing_concepts = sorted(_REQUIRED_ONTOLOGY_CONCEPTS - concept_ids)
+    if missing_concepts:
+        raise ValueError(
+            "taxonomy.concepts_path is missing required SCARAG concepts "
+            f"{missing_concepts}: {concepts_path}"
+        )
 
 
 def _as_str_list(value: Any) -> list[str]:
@@ -80,11 +125,15 @@ class RagConfig:
         config = cls(profile=profile)
         profile_path = Path("profiles") / f"{profile}.json"
         if profile_path.exists():
-            import json
-
             profile_payload = json.loads(profile_path.read_text(encoding="utf-8"))
             if isinstance(profile_payload, dict):
                 config.metadata = profile_payload
+
+                taxonomy_overlay = profile_payload.get("taxonomy")
+                if isinstance(taxonomy_overlay, dict):
+                    concepts_path = taxonomy_overlay.get("concepts_path")
+                    if isinstance(concepts_path, str) and concepts_path.strip():
+                        _validate_ontology_path(concepts_path.strip())
 
                 synonyms_path = profile_payload.get("synonyms_path")
                 if isinstance(synonyms_path, str) and synonyms_path.strip():

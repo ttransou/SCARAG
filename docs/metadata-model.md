@@ -7,6 +7,31 @@ This document defines the canonical evidence schema used from ingestion through 
 - preserve provenance fields across the pipeline,
 - support lifecycle, freshness, and confidence overlays.
 
+## Framework Base Ontology (Implemented Baseline)
+SCARAG now ships a framework-owned baseline ontology in [config/scarag_base_ontology.json](../config/scarag_base_ontology.json).
+
+Minimum framework concepts:
+- Source
+- SourceUnit
+- EvidenceUnit
+- DocumentType
+- LifecycleStatus
+- Provenance
+- ConfidenceSignal
+- Citation
+- DomainProfile
+- Concept
+
+Core relationships:
+- Source contains SourceUnit
+- SourceUnit produces EvidenceUnit
+- EvidenceUnit carries Metadata
+- EvidenceUnit has LifecycleStatus
+- EvidenceUnit has Provenance
+- EvidenceUnit may support Citation
+- EvidenceUnit may contribute to Answer
+- DomainProfile guides retrieval, lifecycle, confidence, and vocabulary behavior
+
 ## Canonical Evidence Unit Schema (Implemented)
 Required fields on every chunk/evidence unit:
 - chunk_id

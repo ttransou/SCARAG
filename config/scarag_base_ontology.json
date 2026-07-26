@@ -1,0 +1,93 @@
+{
+  "ontology_id": "scarag_base",
+  "version": "1.0.0",
+  "description": "Framework-owned baseline ontology for SCARAG source, evidence, lifecycle, provenance, confidence, and profile semantics.",
+  "concepts": [
+    {
+      "id": "Source",
+      "plain_meaning": "The original file, document, spreadsheet, page, or record"
+    },
+    {
+      "id": "SourceUnit",
+      "plain_meaning": "A meaningful part of the source, such as a section, table, page, row group, or extracted block"
+    },
+    {
+      "id": "EvidenceUnit",
+      "plain_meaning": "The chunk or retrievable unit used by the system"
+    },
+    {
+      "id": "DocumentType",
+      "plain_meaning": "What kind of source this is: policy, FAQ, report, table, note, etc."
+    },
+    {
+      "id": "LifecycleStatus",
+      "plain_meaning": "Whether the evidence is active, retired, pending review, deleted, stale, etc."
+    },
+    {
+      "id": "Provenance",
+      "plain_meaning": "Where the evidence came from and how it was produced"
+    },
+    {
+      "id": "ConfidenceSignal",
+      "plain_meaning": "Reasons to trust, weaken, or abstain from using the evidence"
+    },
+    {
+      "id": "Citation",
+      "plain_meaning": "The traceable reference shown to the user"
+    },
+    {
+      "id": "DomainProfile",
+      "plain_meaning": "A lightweight set of domain-specific hints"
+    },
+    {
+      "id": "Concept",
+      "plain_meaning": "A domain term, synonym, category, or controlled vocabulary item"
+    }
+  ],
+  "core_relationships": [
+    {
+      "subject": "Source",
+      "predicate": "contains",
+      "object": "SourceUnit"
+    },
+    {
+      "subject": "SourceUnit",
+      "predicate": "produces",
+      "object": "EvidenceUnit"
+    },
+    {
+      "subject": "EvidenceUnit",
+      "predicate": "carries",
+      "object": "Metadata"
+    },
+    {
+      "subject": "EvidenceUnit",
+      "predicate": "has",
+      "object": "LifecycleStatus"
+    },
+    {
+      "subject": "EvidenceUnit",
+      "predicate": "has",
+      "object": "Provenance"
+    },
+    {
+      "subject": "EvidenceUnit",
+      "predicate": "may_support",
+      "object": "Citation"
+    },
+    {
+      "subject": "EvidenceUnit",
+      "predicate": "may_contribute_to",
+      "object": "Answer"
+    },
+    {
+      "subject": "DomainProfile",
+      "predicate": "guides",
+      "object": "retrieval_lifecycle_confidence_vocabulary_behavior"
+    }
+  ],
+  "notes": {
+    "metadata": "Metadata is a framework contract surface represented by canonical evidence fields.",
+    "answer": "Answer is a response-layer artifact produced from retrieved evidence under grounding policy."
+  }
+}

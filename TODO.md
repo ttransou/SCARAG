@@ -148,10 +148,10 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [x] Implemented (baseline): reset_eval_workspace.py cleanup workflow is documented for repeatable test-data reset protocol.
 
 ### 12. Domain Profiles / NLP Tailoring
-- [ ] Partial: profiles/default.json loads through RagConfig.from_profile.
+- [x] Implemented (baseline): profiles/default.json loads through RagConfig.from_profile with baseline overlay mapping for synonyms/lifecycle and taxonomy.concepts_path validation.
 - [X] Implemented: Domain thesaurus support via config/synonyms.json.
 - [ ] Roadmap target: Add profile overlays for retrieval/lifecycle/confidence defaults.
-- [ ] Roadmap target: Add ontology/taxonomy template examples and integration guidance.
+- [x] Implemented (baseline): Add ontology/taxonomy baseline template and integration guidance (config/scarag_base_ontology.json + docs/metadata-model.md).
 - [ ] Roadmap target: Expand doc_type taxonomy behavior and domain-specific overrides.
 - [ ] Roadmap target: Add confidence overlay file conventions and loader behavior.
 - [ ] Design/specification: Domain kickoff worksheet file (implementation aid; not core runtime).

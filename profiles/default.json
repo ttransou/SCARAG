@@ -35,7 +35,7 @@
     ]
   },
   "taxonomy": {
-    "concepts_path": null,
+    "concepts_path": "config/scarag_base_ontology.json",
     "doc_type_taxonomy_path": null
   },
   "boilerplate_policy": {

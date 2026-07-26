@@ -59,3 +59,58 @@ def test_from_profile_overrides_take_precedence(tmp_path: Path, monkeypatch) -> 
     assert config.thesaurus_path == "config/synonyms-from-override.json"
     assert config.freshness_max_age_days == 7
     assert config.freshness_missing_ts_policy == "exclude"
+
+
+def test_from_profile_raises_for_missing_ontology_path(tmp_path: Path, monkeypatch) -> None:
+    profiles_dir = tmp_path / "profiles"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    profile_payload = {
+        "profile_id": "default",
+        "taxonomy": {
+            "concepts_path": "config/missing_ontology.json",
+        },
+    }
+    (profiles_dir / "default.json").write_text(json.dumps(profile_payload), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    try:
+        RagConfig.from_profile("default")
+        assert False, "Expected ValueError for missing ontology path"
+    except ValueError as exc:
+        assert "taxonomy.concepts_path does not exist" in str(exc)
+
+
+def test_from_profile_accepts_valid_ontology_path(tmp_path: Path, monkeypatch) -> None:
+    profiles_dir = tmp_path / "profiles"
+    config_dir = tmp_path / "config"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    ontology_payload = {
+        "concepts": [
+            {"id": "Source"},
+            {"id": "SourceUnit"},
+            {"id": "EvidenceUnit"},
+            {"id": "DocumentType"},
+            {"id": "LifecycleStatus"},
+            {"id": "Provenance"},
+            {"id": "ConfidenceSignal"},
+            {"id": "Citation"},
+            {"id": "DomainProfile"},
+            {"id": "Concept"},
+        ],
+        "core_relationships": [],
+    }
+    (config_dir / "ontology.json").write_text(json.dumps(ontology_payload), encoding="utf-8")
+
+    profile_payload = {
+        "profile_id": "default",
+        "taxonomy": {
+            "concepts_path": "config/ontology.json",
+        },
+    }
+    (profiles_dir / "default.json").write_text(json.dumps(profile_payload), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    config = RagConfig.from_profile("default")
+    assert config.profile == "default"

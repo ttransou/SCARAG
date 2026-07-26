@@ -28,6 +28,8 @@ This document tracks implementation progress for the framework surfaces describe
 - Fallback scaffold behavior is now integration-tested for priority ordering: explicit FAQ mapping overrides intent matching, and generic fallback remains the terminal default.
 - Deployment boundaries are now explicitly documented as framework-owned versus implementation-owned responsibilities (`docs/deployment-boundaries.md`).
 - Environment assumptions for Python/Node, corpus layout, and startup commands are now documented in `README.md`.
+- Framework base ontology is defined in `config/scarag_base_ontology.json` and wired through the default profile taxonomy overlay.
+- Profile loading validates `taxonomy.concepts_path` presence and required SCARAG ontology concepts at startup.
 
 ## Update Rule
 When a roadmap target moves to partial or implemented, update this file and the capability matrix in README in the same change set.

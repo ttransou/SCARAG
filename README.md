@@ -107,7 +107,7 @@ graph LR
 | reference API | Implemented | api_server.py /api/health and /api/chat | Add config endpoints and diagnostic surfaces |
 | reference UI | Partial | frontend/src/App.jsx and styles.css implement shell, drawer, feedback scaffold | Wire feedback persistence and expand evidence interactions |
 | offline evaluation | Implemented (baseline) | scripts/run_eval.py outputs JSON/Markdown reports with retrieval/provenance/abstention/tabular/confidence expectation metrics | Add richer datasets, dataset sanity checks, and deeper governance checks |
-| domain profiles | Partial | profiles/default.json + RagConfig.from_profile | Add domain-specific profiles and confidence overlays |
+| domain profiles | Implemented (baseline) | profiles/default.json + RagConfig.from_profile + config/scarag_base_ontology.json | Add domain-specific profiles and confidence overlays |
 | deployment guidance | Partial | start scripts and README run path plus docs/deployment-boundaries.md for framework-owned versus implementation-owned deployment boundaries | Add deployment playbooks and cloud adapter references |
 
 ## Operational Design Docs
@@ -205,9 +205,11 @@ Current implementation baseline:
 Roadmap targets:
 - domain overlays and richer confidence debug traces.
 
-### Domain Profiles and Ontology/Taxonomy Tailoring - Status: Partial
+### Domain Profiles and Ontology/Taxonomy Tailoring - Status: Implemented (baseline)
 Current implementation baseline:
 - profiles/default.json is loadable through RagConfig.from_profile.
+- base framework ontology is defined in config/scarag_base_ontology.json and referenced by profiles/default.json taxonomy.concepts_path.
+- RagConfig.from_profile validates taxonomy.concepts_path existence and required SCARAG ontology concept coverage.
 - Synonym and tabular intent vocabulary are configurable in config/synonyms.json.
 
 Roadmap targets:
