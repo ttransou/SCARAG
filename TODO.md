@@ -158,15 +158,15 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Future extension: Implementation-specific pruning workflow for single-domain deployments.
 
 ### 13. Docs / Repository Hygiene
-- [ ] Partial: README implementation status and capability matrix are in place.
+- [x] Implemented (baseline): README implementation status and capability matrix are in place.
 - [X] Implemented: Path consistency fixes for current package layout (scarag/, api_server.py, frontend/, scripts/, docs/).
 - [X] Implemented: Contributor guide and maintainer checklist exist.
-- [ ] Partial: Architecture docs set now exists (implementation-status, metadata-model, lifecycle-design, retrieval-design, confidence-framework, tabular-grounding).
-- [ ] Roadmap target: Keep README capability statuses synchronized with code changes in every feature PR.
+- [x] Implemented (baseline): Architecture docs set exists (implementation-status, metadata-model, lifecycle-design, retrieval-design, confidence-framework, tabular-grounding).
+- [x] Implemented (process baseline): README capability statuses are required to sync with code changes in feature PRs (README + docs/implementation-status.md + maintainer checklist guardrails).
 - [x] Implemented (baseline): Added deployment notes with explicit framework-owned vs implementation-owned boundaries.
 - [x] Implemented (baseline): Added environment assumptions section (Python, Node, corpus layout, startup commands).
-- [ ] Roadmap target: Record core rationale for each bibliography item in context of SCARAG design goals.
-- [ ] Roadmap target: Ensure new framework claims and implementation notes are backed by citations where appropriate.
+- [x] Implemented (baseline): Record core rationale for each bibliography item in context of SCARAG design goals.
+- [x] Implemented (process baseline): New framework claims and implementation notes require citation/trace references where appropriate (maintainer checklist documentation-evidence checks).
 
 ### Fallback Integration
 - [x] Implemented (baseline): config/fallback_template.json scaffold and scripts/fallbacks.py runtime loader are implemented.

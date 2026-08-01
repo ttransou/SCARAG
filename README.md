@@ -358,25 +358,33 @@ SCARAG is informed by work in retrieval-augmented generation, attributed questio
 ### Retrieval-Augmented Generation
 
 - Lewis, Patrick, et al. “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.” 2020.
+  SCARAG rationale: establishes the baseline retrieve-then-generate pattern SCARAG extends with stronger metadata and provenance governance.
 
 - Gao, Yunfan, et al. “Retrieval-Augmented Generation for Large Language Models: A Survey.” 2023.
+  SCARAG rationale: frames the modern RAG design space and motivates explicit treatment of retrieval controls, chunking, and grounding tradeoffs.
 
 - Asai, Akari, et al. “Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection.” 2023.
+  SCARAG rationale: informs critique/abstention-oriented behavior and supports the framework posture that generation should reflect evidence quality.
 
 ### RAG Evaluation
 
 - Es, Shahul, et al. “RAGAS: Automated Evaluation of Retrieval Augmented Generation.” 2023.
+  SCARAG rationale: supports layered evaluation dimensions (faithfulness, context quality, answer relevance) beyond single-score benchmarking.
 
 ### Attribution and Source Grounding
 
 - Bohnet, Bernd, et al. “Attributed Question Answering: Evaluation and Modeling for Attributed Large Language Models.” 2022.
+  SCARAG rationale: reinforces attribution as a first-class output requirement rather than optional UI decoration.
 
 - Yue, Xiang, et al. “Automatic Evaluation of Attribution by Large Language Models.” 2023.
+  SCARAG rationale: informs evaluation expectations for citation support and provenance completeness.
 
 - Nakano, Reiichiro, et al. “WebGPT: Improving the Factual Accuracy of Language Models through Web Browsing.” 2021.
+  SCARAG rationale: motivates explicit evidence exposure and reviewer-traceable support in grounded responses.
 
 ### Instruction-Following and Human Feedback
 
 - Ouyang, Long, et al. “Training Language Models to Follow Instructions with Human Feedback.” 2022.
+  SCARAG rationale: informs human-in-the-loop alignment posture while preserving abstention and evidence-backed answer constraints.
 
 Where SCARAG makes claims about robustness, abstention, provenance, confidence, or evaluation design, implementation work should prefer cited literature and explicit diagnostics over unsupported assertions.

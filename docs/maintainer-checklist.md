@@ -73,3 +73,12 @@ Run this quick walkthrough when UI interactions, layout, or styles change:
 - Summarize user-visible behavior changes in plain language.
 - Summarize maintainer-facing doc updates.
 - Call out any follow-up TODO items if work is intentionally partial.
+
+## 8. Documentation evidence hygiene
+
+If framework capabilities, roadmap status, or design claims changed, verify all applicable items:
+
+- Update `README.md` capability matrix/status sections in the same change set.
+- Update `docs/implementation-status.md` in the same change set as README status changes.
+- Update `TODO.md` checklist status for completed roadmap/baseline items.
+- Add or update references when introducing new framework claims so rationale/provenance remains reviewable (docs links, tests, or bibliography references as appropriate).
