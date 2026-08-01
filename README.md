@@ -130,6 +130,7 @@ The README is intentionally philosophy-first and status-oriented. Detailed opera
 - Reference UI: frontend/
 - Operational scripts: scripts/
 - Configuration and synonyms: config/
+- Fallback template scaffold: config/fallback_template.json
 - Domain profiles: profiles/
 - Offline evaluation workspace: eval/
 - Regression tests: tests/
@@ -210,6 +211,8 @@ Current implementation baseline:
 - profiles/default.json is loadable through RagConfig.from_profile.
 - base framework ontology is defined in config/scarag_base_ontology.json and referenced by profiles/default.json taxonomy.concepts_path.
 - RagConfig.from_profile validates taxonomy.concepts_path existence and required SCARAG ontology concept coverage.
+- profiles/default.json taxonomy.doc_type_taxonomy_path points to config/scarag_doc_type_taxonomy.json for framework-generic doc_type inference/extension defaults.
+- retrieval overlay preferred_doc_types and lower_priority_doc_types apply doc_type weighting overrides without requiring domain NLP datasets.
 - Synonym and tabular intent vocabulary are configurable in config/synonyms.json.
 
 Roadmap targets:

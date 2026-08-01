@@ -114,3 +114,95 @@ def test_from_profile_accepts_valid_ontology_path(tmp_path: Path, monkeypatch) -
     monkeypatch.chdir(tmp_path)
     config = RagConfig.from_profile("default")
     assert config.profile == "default"
+
+
+def test_from_profile_raises_for_missing_doc_type_taxonomy_path(tmp_path: Path, monkeypatch) -> None:
+    profiles_dir = tmp_path / "profiles"
+    config_dir = tmp_path / "config"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    ontology_payload = {
+        "concepts": [
+            {"id": "Source"},
+            {"id": "SourceUnit"},
+            {"id": "EvidenceUnit"},
+            {"id": "DocumentType"},
+            {"id": "LifecycleStatus"},
+            {"id": "Provenance"},
+            {"id": "ConfidenceSignal"},
+            {"id": "Citation"},
+            {"id": "DomainProfile"},
+            {"id": "Concept"},
+        ],
+        "core_relationships": [],
+    }
+    (config_dir / "ontology.json").write_text(json.dumps(ontology_payload), encoding="utf-8")
+
+    profile_payload = {
+        "profile_id": "default",
+        "taxonomy": {
+            "concepts_path": "config/ontology.json",
+            "doc_type_taxonomy_path": "config/missing_doc_types.json",
+        },
+    }
+    (profiles_dir / "default.json").write_text(json.dumps(profile_payload), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    try:
+        RagConfig.from_profile("default")
+        assert False, "Expected ValueError for missing doc type taxonomy path"
+    except ValueError as exc:
+        assert "taxonomy.doc_type_taxonomy_path does not exist" in str(exc)
+
+
+def test_from_profile_applies_doc_type_retrieval_overlay_weights(tmp_path: Path, monkeypatch) -> None:
+    profiles_dir = tmp_path / "profiles"
+    config_dir = tmp_path / "config"
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    ontology_payload = {
+        "concepts": [
+            {"id": "Source"},
+            {"id": "SourceUnit"},
+            {"id": "EvidenceUnit"},
+            {"id": "DocumentType"},
+            {"id": "LifecycleStatus"},
+            {"id": "Provenance"},
+            {"id": "ConfidenceSignal"},
+            {"id": "Citation"},
+            {"id": "DomainProfile"},
+            {"id": "Concept"},
+        ],
+        "core_relationships": [],
+    }
+    (config_dir / "ontology.json").write_text(json.dumps(ontology_payload), encoding="utf-8")
+
+    taxonomy_payload = {
+        "doc_types": {
+            "faq": {"patterns": ["faq"]},
+            "policy": {"patterns": ["policy"]},
+        }
+    }
+    (config_dir / "doc_types.json").write_text(json.dumps(taxonomy_payload), encoding="utf-8")
+
+    profile_payload = {
+        "profile_id": "default",
+        "retrieval": {
+            "preferred_doc_types": ["faq"],
+            "lower_priority_doc_types": ["policy"],
+        },
+        "taxonomy": {
+            "concepts_path": "config/ontology.json",
+            "doc_type_taxonomy_path": "config/doc_types.json",
+        },
+    }
+    (profiles_dir / "default.json").write_text(json.dumps(profile_payload), encoding="utf-8")
+
+    monkeypatch.chdir(tmp_path)
+    config = RagConfig.from_profile("default")
+
+    doc_type_rules = config.metadata_weight_rules.get("doc_type", {})
+    assert float(doc_type_rules.get("faq", 0.0)) >= 1.2
+    assert float(doc_type_rules.get("policy", 0.0)) <= 0.8

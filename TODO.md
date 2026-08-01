@@ -152,7 +152,7 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [X] Implemented: Domain thesaurus support via config/synonyms.json.
 - [ ] Roadmap target: Add profile overlays for retrieval/lifecycle/confidence defaults.
 - [x] Implemented (baseline): Add ontology/taxonomy baseline template and integration guidance (config/scarag_base_ontology.json + docs/metadata-model.md).
-- [ ] Roadmap target: Expand doc_type taxonomy behavior and domain-specific overrides.
+- [x] Implemented (baseline): Expand doc_type taxonomy behavior and profile-driven overrides via taxonomy.doc_type_taxonomy_path + retrieval preferred/lower-priority doc_type weighting.
 - [ ] Roadmap target: Add confidence overlay file conventions and loader behavior.
 - [ ] Design/specification: Domain kickoff worksheet file (implementation aid; not core runtime).
 - [ ] Future extension: Implementation-specific pruning workflow for single-domain deployments.
@@ -169,7 +169,7 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [ ] Roadmap target: Ensure new framework claims and implementation notes are backed by citations where appropriate.
 
 ### Fallback Integration
-- [x] Implemented (baseline): fallback_template.json scaffold and scripts/fallbacks.py runtime loader are implemented.
+- [x] Implemented (baseline): config/fallback_template.json scaffold and scripts/fallbacks.py runtime loader are implemented.
 - [x] Implemented: Added integration test coverage and maintainer checklist guidance for fallback priority (explicit FAQ mapping > intent match > generic fallback).
 
 ## Implementation-Specific Boundaries
@@ -193,8 +193,8 @@ This log preserves items that were checked off in earlier TODO iterations before
 - [x] Preserve the citation and evidence response contract while replacing or extending the reference UI.
 
 ### Fallback Scaffold Work
-- [x] Add fallback_template.json scaffold with clarification, abstain, suggest/resource, and escalation fallback types.
-- [x] Wire fallback_template.json into runtime fallback handler via scripts/fallbacks.py.
+- [x] Add config/fallback_template.json scaffold with clarification, abstain, suggest/resource, and escalation fallback types.
+- [x] Wire config/fallback_template.json into runtime fallback handler via scripts/fallbacks.py.
 - [x] Allow deployment-specific fallback overrides via env var or config path.
 
 ### Bibliography Baseline

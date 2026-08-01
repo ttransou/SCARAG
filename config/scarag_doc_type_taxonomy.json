@@ -1,0 +1,91 @@
+{
+  "taxonomy_id": "scarag_doc_type_base",
+  "version": "1.0.0",
+  "default_doc_type": "unknown",
+  "extension_defaults": {
+    ".csv": "table",
+    ".tsv": "table",
+    ".xlsx": "table",
+    ".xls": "table",
+    ".pdf": "report",
+    ".md": "note"
+  },
+  "source_overrides": [
+    {
+      "contains": [
+        "faq",
+        "qna",
+        "knowledge-base"
+      ],
+      "doc_type": "faq"
+    },
+    {
+      "contains": [
+        "policy",
+        "policies"
+      ],
+      "doc_type": "policy"
+    }
+  ],
+  "doc_types": {
+    "policy": {
+      "patterns": [
+        "policy",
+        "policies",
+        "compliance"
+      ]
+    },
+    "procedure": {
+      "patterns": [
+        "procedure",
+        "procedures",
+        "sop",
+        "runbook"
+      ]
+    },
+    "faq": {
+      "patterns": [
+        "faq",
+        "frequently asked",
+        "q&a"
+      ]
+    },
+    "guideline": {
+      "patterns": [
+        "guideline",
+        "guidelines",
+        "best practice"
+      ]
+    },
+    "report": {
+      "patterns": [
+        "report",
+        "summary",
+        "analysis",
+        "findings"
+      ]
+    },
+    "contract": {
+      "patterns": [
+        "contract",
+        "agreement",
+        "terms"
+      ]
+    },
+    "table": {
+      "patterns": [
+        "table",
+        "spreadsheet",
+        "worksheet",
+        "rows"
+      ]
+    },
+    "note": {
+      "patterns": [
+        "note",
+        "memo",
+        "reference"
+      ]
+    }
+  }
+}

@@ -1,7 +1,7 @@
 """
 Simple fallback loader and selector for SCARAG.
 
-This script loads `fallback_template.json` from the repository root by default (or from the path
+This script loads `config/fallback_template.json` by default (or from the path
 specified by the FALLBACK_PATH environment variable) and selects a fallback response based on
 string-similarity matching and optional retrieval confidence.
 
@@ -30,7 +30,11 @@ from difflib import SequenceMatcher
 from typing import Any, Dict, List, Optional
 
 FALLBACK_ENV = "FALLBACK_PATH"
-DEFAULT_FALLBACK_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), "fallback_template.json")
+DEFAULT_FALLBACK_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)),
+    "config",
+    "fallback_template.json",
+)
 
 
 @dataclass
@@ -125,7 +129,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser("fallbacks")
     parser.add_argument("query", help="User question to test against fallbacks")
     parser.add_argument("--conf", type=float, default=None, help="Optional retrieval confidence (lower is less confident)")
-    parser.add_argument("--path", type=str, default=None, help="Path to fallback_template.json (overrides env var)")
+    parser.add_argument(
+        "--path",
+        type=str,
+        default=None,
+        help="Path to config/fallback_template.json (overrides env var)",
+    )
     args = parser.parse_args()
 
     if args.path:

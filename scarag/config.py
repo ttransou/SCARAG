@@ -19,6 +19,9 @@ _REQUIRED_ONTOLOGY_CONCEPTS = {
     "Concept",
 }
 
+_PREFERRED_DOC_TYPE_WEIGHT = 1.2
+_LOWER_PRIORITY_DOC_TYPE_WEIGHT = 0.8
+
 
 def _validate_ontology_path(concepts_path: str) -> None:
     ontology_path = Path(concepts_path)
@@ -54,6 +57,57 @@ def _as_str_list(value: Any) -> list[str]:
     if not isinstance(value, list):
         return []
     return [str(item).strip() for item in value if str(item).strip()]
+
+
+def _normalize_weight_map(value: Any) -> dict[str, float]:
+    if not isinstance(value, dict):
+        return {}
+
+    normalized: dict[str, float] = {}
+    for key, raw_weight in value.items():
+        key_text = str(key).strip().lower()
+        if not key_text:
+            continue
+        try:
+            weight = float(raw_weight)
+        except (TypeError, ValueError):
+            continue
+        if weight <= 0:
+            continue
+        normalized[key_text] = weight
+    return normalized
+
+
+def _validate_doc_type_taxonomy_path(doc_type_taxonomy_path: str) -> None:
+    taxonomy_path = Path(doc_type_taxonomy_path)
+    if not taxonomy_path.exists():
+        raise ValueError(f"taxonomy.doc_type_taxonomy_path does not exist: {doc_type_taxonomy_path}")
+
+    try:
+        taxonomy_payload = json.loads(taxonomy_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(
+            f"taxonomy.doc_type_taxonomy_path is not valid JSON: {doc_type_taxonomy_path}"
+        ) from exc
+
+    if not isinstance(taxonomy_payload, dict):
+        raise ValueError(
+            "taxonomy.doc_type_taxonomy_path must contain a JSON object: "
+            f"{doc_type_taxonomy_path}"
+        )
+
+    doc_types = taxonomy_payload.get("doc_types")
+    if not isinstance(doc_types, dict):
+        raise ValueError(
+            "taxonomy.doc_type_taxonomy_path must define a 'doc_types' object: "
+            f"{doc_type_taxonomy_path}"
+        )
+
+    if not doc_types:
+        raise ValueError(
+            "taxonomy.doc_type_taxonomy_path must define at least one doc type: "
+            f"{doc_type_taxonomy_path}"
+        )
 
 
 @dataclass
@@ -135,6 +189,10 @@ class RagConfig:
                     if isinstance(concepts_path, str) and concepts_path.strip():
                         _validate_ontology_path(concepts_path.strip())
 
+                    doc_type_taxonomy_path = taxonomy_overlay.get("doc_type_taxonomy_path")
+                    if isinstance(doc_type_taxonomy_path, str) and doc_type_taxonomy_path.strip():
+                        _validate_doc_type_taxonomy_path(doc_type_taxonomy_path.strip())
+
                 synonyms_path = profile_payload.get("synonyms_path")
                 if isinstance(synonyms_path, str) and synonyms_path.strip():
                     config.thesaurus_path = synonyms_path.strip()
@@ -161,6 +219,36 @@ class RagConfig:
                     missing_timestamp_policy = lifecycle_overlay.get("missing_timestamp_policy")
                     if isinstance(missing_timestamp_policy, str) and missing_timestamp_policy.strip():
                         config.freshness_missing_ts_policy = missing_timestamp_policy.strip()
+
+                retrieval_overlay = profile_payload.get("retrieval")
+                if isinstance(retrieval_overlay, dict):
+                    preferred_doc_types = {
+                        item.lower() for item in _as_str_list(retrieval_overlay.get("preferred_doc_types"))
+                    }
+                    lower_priority_doc_types = {
+                        item.lower()
+                        for item in _as_str_list(retrieval_overlay.get("lower_priority_doc_types"))
+                    }
+
+                    existing_rules = config.metadata_weight_rules if isinstance(config.metadata_weight_rules, dict) else {}
+                    merged_rules: dict[str, dict[str, float]] = {
+                        key: _normalize_weight_map(value)
+                        for key, value in existing_rules.items()
+                        if isinstance(key, str)
+                    }
+                    doc_type_rules = dict(merged_rules.get("doc_type", {}))
+
+                    for doc_type in preferred_doc_types:
+                        current = doc_type_rules.get(doc_type, 1.0)
+                        doc_type_rules[doc_type] = max(current, _PREFERRED_DOC_TYPE_WEIGHT)
+
+                    for doc_type in lower_priority_doc_types:
+                        current = doc_type_rules.get(doc_type, 1.0)
+                        doc_type_rules[doc_type] = min(current, _LOWER_PRIORITY_DOC_TYPE_WEIGHT)
+
+                    if doc_type_rules:
+                        merged_rules["doc_type"] = doc_type_rules
+                        config.metadata_weight_rules = merged_rules
             else:
                 config.metadata = {}
         for key, value in overrides.items():

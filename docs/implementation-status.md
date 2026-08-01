@@ -30,6 +30,8 @@ This document tracks implementation progress for the framework surfaces describe
 - Environment assumptions for Python/Node, corpus layout, and startup commands are now documented in `README.md`.
 - Framework base ontology is defined in `config/scarag_base_ontology.json` and wired through the default profile taxonomy overlay.
 - Profile loading validates `taxonomy.concepts_path` presence and required SCARAG ontology concepts at startup.
+- Framework-generic doc_type taxonomy is defined in `config/scarag_doc_type_taxonomy.json` and wired through profile `taxonomy.doc_type_taxonomy_path`.
+- Profile retrieval overlays apply `preferred_doc_types` and `lower_priority_doc_types` as doc_type metadata weighting overrides.
 
 ## Update Rule
 When a roadmap target moves to partial or implemented, update this file and the capability matrix in README in the same change set.

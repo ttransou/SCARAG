@@ -19,6 +19,15 @@ _TOKEN_RE = re.compile(r"[A-Za-z0-9_]+")
 _TABULAR_SPLIT_RE = re.compile(r"\s*\|\s*|\s*,\s*")
 _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 
+_DEFAULT_DOC_TYPE_PATTERNS: dict[str, list[str]] = {
+    "policy": ["policy", "policies"],
+    "procedure": ["procedure", "procedures", "sop"],
+    "faq": ["faq", "frequently asked"],
+    "guideline": ["guideline", "guidelines", "best practice"],
+    "report": ["report", "summary", "analysis"],
+    "contract": ["contract", "agreement", "terms"],
+}
+
 
 def _tokenize(text: str) -> list[str]:
     return [match.group(0).lower() for match in _TOKEN_RE.finditer(text)]
@@ -136,21 +145,78 @@ def _lifecycle_filter_reason(chunk: dict[str, Any], config: RagConfig, store: Li
     return None
 
 
-def infer_doc_type(source: str, text: str) -> str:
+def infer_doc_type(source: str, text: str, taxonomy: dict[str, Any] | None = None) -> str:
     source_lower = source.lower()
     text_lower = text.lower()
-    doc_type_patterns = {
-        "policy": ["policy", "policies"],
-        "procedure": ["procedure", "procedures", "sop"],
-        "faq": ["faq", "frequently asked"],
-        "guideline": ["guideline", "guidelines", "best practice"],
-        "report": ["report", "summary", "analysis"],
-        "contract": ["contract", "agreement", "terms"],
-    }
+
+    safe_taxonomy = taxonomy if isinstance(taxonomy, dict) else {}
+
+    source_overrides = safe_taxonomy.get("source_overrides")
+    if isinstance(source_overrides, list):
+        for override in source_overrides:
+            if not isinstance(override, dict):
+                continue
+            doc_type = str(override.get("doc_type", "")).strip().lower()
+            contains_terms = override.get("contains")
+            if not doc_type or not isinstance(contains_terms, list):
+                continue
+            normalized_terms = [str(term).strip().lower() for term in contains_terms if str(term).strip()]
+            if normalized_terms and any(term in source_lower for term in normalized_terms):
+                return doc_type
+
+    extension_defaults = safe_taxonomy.get("extension_defaults")
+    if isinstance(extension_defaults, dict):
+        source_path = Path(source_lower)
+        suffixes = list(source_path.suffixes)
+        for suffix in reversed(suffixes):
+            mapped_doc_type = extension_defaults.get(suffix)
+            if isinstance(mapped_doc_type, str) and mapped_doc_type.strip():
+                return mapped_doc_type.strip().lower()
+
+    doc_type_patterns: dict[str, list[str]] = dict(_DEFAULT_DOC_TYPE_PATTERNS)
+    taxonomy_doc_types = safe_taxonomy.get("doc_types")
+    if isinstance(taxonomy_doc_types, dict):
+        for raw_doc_type, definition in taxonomy_doc_types.items():
+            doc_type = str(raw_doc_type).strip().lower()
+            if not doc_type or not isinstance(definition, dict):
+                continue
+            patterns = definition.get("patterns")
+            if not isinstance(patterns, list):
+                continue
+            normalized_patterns = [str(pattern).strip().lower() for pattern in patterns if str(pattern).strip()]
+            if normalized_patterns:
+                doc_type_patterns[doc_type] = normalized_patterns
+
     for doc_type, patterns in doc_type_patterns.items():
         if any(pattern in source_lower or pattern in text_lower for pattern in patterns):
             return doc_type
+
+    fallback_doc_type = safe_taxonomy.get("default_doc_type")
+    if isinstance(fallback_doc_type, str) and fallback_doc_type.strip():
+        return fallback_doc_type.strip().lower()
     return "unknown"
+
+
+def _load_doc_type_taxonomy(config: RagConfig) -> dict[str, Any]:
+    metadata = config.metadata if isinstance(config.metadata, dict) else {}
+    taxonomy_overlay = metadata.get("taxonomy")
+    if not isinstance(taxonomy_overlay, dict):
+        return {}
+
+    taxonomy_path = taxonomy_overlay.get("doc_type_taxonomy_path")
+    if not isinstance(taxonomy_path, str) or not taxonomy_path.strip():
+        return {}
+
+    file_path = Path(taxonomy_path.strip())
+    if not file_path.exists():
+        return {}
+
+    try:
+        loaded = json.loads(file_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+    return loaded if isinstance(loaded, dict) else {}
 
 
 def _looks_tabular(text: str) -> bool:
@@ -615,6 +681,7 @@ def build_chunk_index(
 ) -> list[dict[str, Any]]:
     chunks: list[dict[str, Any]] = []
     seen_fingerprints: set[str] = set()
+    doc_type_taxonomy = _load_doc_type_taxonomy(config)
     store = lifecycle_store or LifecycleStateStore(
         config.lifecycle_state_path,
         audit_log_path=config.lifecycle_audit_log_path,
@@ -645,7 +712,7 @@ def build_chunk_index(
         extraction_method = str(document.get("extraction_method") or "text_file_parser")
         extraction_ts = str(document.get("extraction_ts") or utc_now_iso())
 
-        doc_type = str(document.get("doc_type") or infer_doc_type(source, text))
+        doc_type = str(document.get("doc_type") or infer_doc_type(source, text, taxonomy=doc_type_taxonomy))
         table_metadata = document.get("table_metadata")
         image_markers = document.get("image_markers")
         tabular = bool(table_metadata) or _looks_tabular(text)

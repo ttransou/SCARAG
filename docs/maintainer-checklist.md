@@ -45,7 +45,7 @@ If fallback template entries or loader selection logic changed, verify all appli
 
 - Confirm fallback priority remains `explicit FAQ mapping > intent match > generic fallback`.
 - Run fallback integration tests in `tests/test_fallbacks.py`.
-- Confirm `fallback_template.json` retains a valid `generic_fallback` entry as safe default.
+- Confirm `config/fallback_template.json` retains a valid `generic_fallback` entry as safe default.
 - Update `TODO.md` and implementation status docs when fallback verification coverage changes.
 
 ## 6. Verification checks before merge
