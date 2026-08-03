@@ -1,0 +1,18 @@
+{
+  "schema_note": "Humanities-oriented terms for provenance, edition, and archival context.",
+  "terms": {
+    "provenance": ["origin", "attribution", "authorship", "source history", "repository"],
+    "edition": ["textual version", "critical edition", "translation", "transcription"],
+    "archive": ["collection", "repository", "fonds", "holding", "finding aid"],
+    "annotation": ["gloss", "marginal note", "commentary", "scholarly note"],
+    "artist": ["maker", "creator", "atelier", "school"],
+    "work": ["object", "piece", "artifact", "composition"],
+    "art": ["painting", "sculpture", "print", "drawing", "iconography", "visual culture"],
+    "literature": ["text", "poetry", "fiction", "dramatic work", "reading"]
+  },
+  "intent_groups": {
+    "provenance": ["provenance", "attribution", "origin", "authorship", "repository"],
+    "interpretation": ["interpretation", "analysis", "commentary", "reading", "context"],
+    "authority": ["ulan", "thesaurus", "controlled vocabulary", "authority file", "aat"]
+  }
+}

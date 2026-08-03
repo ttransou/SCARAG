@@ -1,0 +1,11 @@
+{
+  "su_45ab2acb8923ca9a": {
+    "content_fingerprint": "1c569f66114ee28544f4aec25e3b85a3d4044322",
+    "deletion_mark_iso_ts": null,
+    "ingestion_iso_ts": "2026-08-03T21:19:53Z",
+    "last_upsert_iso_ts": "2026-08-03T21:41:12Z",
+    "source": "example/painting-catalog-entry.txt",
+    "source_unit_id": "su_45ab2acb8923ca9a",
+    "status": "active"
+  }
+}

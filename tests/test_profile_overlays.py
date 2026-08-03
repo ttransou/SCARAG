@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from scarag.config import RagConfig
+from scarag.pipeline import build_chunk_index
 
 
 def test_from_profile_maps_synonyms_and_lifecycle_overlay(tmp_path: Path, monkeypatch) -> None:
@@ -206,3 +207,31 @@ def test_from_profile_applies_doc_type_retrieval_overlay_weights(tmp_path: Path,
     doc_type_rules = config.metadata_weight_rules.get("doc_type", {})
     assert float(doc_type_rules.get("faq", 0.0)) >= 1.2
     assert float(doc_type_rules.get("policy", 0.0)) <= 0.8
+
+
+def test_humanities_profile_loads_with_humanities_overlays() -> None:
+    config = RagConfig.from_profile("humanities")
+
+    assert config.metadata["profile_id"] == "humanities"
+    assert config.thesaurus_path == "config/humanities_synonyms.json"
+    assert "note" in config.metadata["retrieval"]["preferred_doc_types"]
+    assert "provenance" in config.metadata["retrieval"]["boost_terms"]
+    assert "reviewed" in config.status_allow_list
+    assert "draft" in config.status_deny_list
+
+
+def test_humanities_taxonomy_infers_art_history_document_type() -> None:
+    config = RagConfig.from_profile("humanities")
+
+    chunks = build_chunk_index(
+        [
+            {
+                "source": "example/painting-catalog-entry.txt",
+                "text": "A catalog entry for a Renaissance altarpiece with provenance and attribution notes.",
+            }
+        ],
+        config,
+    )
+
+    assert chunks
+    assert chunks[0]["doc_type"] == "art_work"

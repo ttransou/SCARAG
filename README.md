@@ -15,19 +15,17 @@ SCARAG is a metadata-first RAG framework for building document-grounded systems 
 
 SCARAG is not trying to make generation sound confident. It is designed to make evidence legible, traceable, and governable.
 
-## Implementation Status
-This repository is a public framework baseline of the SCARAG framework, developed from framework documentation and architectural notes.
+## Why a Humanities Profile Matters
+This repository includes a humanities-oriented profile because the framework is meant to be useful for people working with cultural heritage, archival, textual, and art-historical materials, not only for corporate policy or technical documentation.
 
-This README serves four roles at once:
-- project overview,
-- implementation roadmap,
-- implementation guide,
-- truthful description of what the current public code does today.
+A humanities background can be a strong starting point for building a practical RAG workflow that is evidence-aware and interpretable. The humanities profile is intended to help someone begin with familiar concepts such as provenance, attribution, edition, transcription, and archival context, while keeping the system grounded in document metadata rather than treating everything as interchangeable text.
 
-Some sections describe implemented functionality in this repository. Other sections are explicit roadmap targets that define what still needs to be built. Those targets remain here by design.
+The goal is not to claim that one profile is universally correct. It is to show a concrete, reusable pattern: implementors in other domains can create their own profiles with tailored taxonomies, synonyms, lifecycle rules, and confidence behavior. SCARAG is meant to support that kind of domain-specific adaptation rather than lock users into a single generic setup.
 
-Status synchronization rule:
-- when a roadmap target changes to partial or implemented, update this README and docs/implementation-status.md in the same change set.
+## Framework Positioning
+This repository is a public framework baseline for SCARAG. It is intended to document the framework's core principles, reference implementation surfaces, and the kinds of design decisions that matter when adapting the system to a new domain.
+
+The README is written as a practical orientation document rather than a changelog. Detailed implementation status, roadmap notes, and evolving development history belong in the more expansive documentation set under docs/.
 
 ## Core Premise
 Most RAG systems fail long before generation quality becomes the main issue. They fail because retrieval lacks evidence governance: source identity, metadata quality, freshness, lifecycle state, and domain semantics.
@@ -85,33 +83,20 @@ graph LR
     F --> J[Return answer and citations]
 ```
 
-## Capability Matrix
-| Capability | Current public status | Current implementation surface | Roadmap alignment / next step |
-|---|---|---|---|
-| multi-format ingestion | Implemented (baseline) | scarag/ingestion/loader.py handles txt, md, recursive-json flattening, csv, html/htm, nested multipart mhtml/mht, pdf, docx, pptx, xlsx/xls with extraction metadata | Expand parser diagnostics and domain-specific extraction policies |
-| document type inference | Implemented | scarag/pipeline.py infer_doc_type | Expand taxonomy and profile-driven typing |
-| prose chunking | Implemented (baseline) | scarag/pipeline.py prose source-unit segmentation + _chunk_prose windowing | Tune cohesion thresholds and domain-specific segmentation policies |
-| tabular chunking | Implemented (baseline) | scarag/pipeline.py _looks_tabular + _chunk_tabular metadata-aware row windows/header sectioning with repeated-header chunk metadata and sheet-local spreadsheet row fidelity | Improve advanced table detection heuristics across formats |
-| metadata propagation | Implemented (baseline) | canonical evidence fields include source, chunk_id, source_unit_id, extraction and lifecycle metadata, confidence inputs, table metadata, and image markers where available | Extend with richer parser diagnostics and confidence debug traces |
-| provenance/citations | Implemented (baseline) | api_server.py citation envelope, provenance completeness validator, citation-quality enforcement, and frontend evidence drawer | Add source-resolvable links and richer citation metadata validation |
-| thesaurus/query expansion | Implemented | config/synonyms.json + scarag/pipeline.py expand_query_terms | Add profile overlays, governance for term drift, and diagnostics |
-| lexical retrieval | Implemented (baseline) | scarag/pipeline.py retrieve_chunks with configurable lexical similarity metrics and configurable metadata weighting rules | Tune weights and add calibration tooling |
-| vector or TF-IDF retrieval | Implemented (baseline) | TF-IDF backend implemented with cosine normalization; vector backend implemented via configurable embedding adapter and vector similarity metric selector | Add calibration path and domain tuning |
-| hybrid reranking | Implemented (baseline) | lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interface | Expand diagnostics and semantic blending policies |
-| confidence resolver | Implemented (baseline) | resolver consumes extraction tier + lifecycle signal + retrieval strength + evidence coverage, applies configurable temporal decay, applies framework-level intent alignment boosts/penalties, and emits high/low/abstain | Add profile/domain overlays and richer debug traces |
-| lifecycle/freshness controls | Implemented (baseline) | persistent lifecycle state, freshness filtering, status filters, retrieval diagnostics, and lifecycle audit reporting utility (`scripts/lifecycle_audit_report.py`) | Expand API surfacing for lifecycle diagnostics |
-| soft delete/re-ingestion state | Implemented (baseline) | file-backed state store with source_unit_id, ingestion/upsert timestamps, status, soft-delete marks, skip-unchanged auditing, and hard purge utility (`scripts/lifecycle_cleanup.py`) | Add timeline visualization and retention-policy helpers |
-| tabular grounding | Implemented (baseline) | tabular intent detection, abstention when tabular evidence is absent, strict matched-row grounding, schema-style fallback guardrails, PDF-table limits, and trace output | Add more corpus-specific tabular evaluation coverage and tuning |
-| generation modes | Partial | extractive, mock, live placeholder, and structured grounded-answer result in scarag/generation/answerer.py | Add provider adapters for live mode |
-| citation response contract | Implemented | docs/reference-ui-contract.md and api_server.py response fields | Expand contract tests and richer citation metadata |
-| reference API | Implemented | api_server.py /api/health and /api/chat | Add config endpoints and diagnostic surfaces |
-| reference UI | Partial | frontend/src/App.jsx and styles.css implement shell, drawer, feedback scaffold | Wire feedback persistence and expand evidence interactions |
-| offline evaluation | Implemented (baseline) | scripts/run_eval.py outputs JSON/Markdown reports with retrieval/provenance/abstention/tabular/confidence expectation metrics | Add richer datasets, dataset sanity checks, and deeper governance checks |
-| domain profiles | Implemented (baseline) | profiles/default.json + RagConfig.from_profile + config/scarag_base_ontology.json | Add domain-specific profiles and confidence overlays |
-| deployment guidance | Partial | start scripts and README run path plus docs/deployment-boundaries.md for framework-owned versus implementation-owned deployment boundaries | Add deployment playbooks and cloud adapter references |
+## Framework Components
+The repository includes a reference implementation that demonstrates the framework's core layers:
+
+- ingestion and normalization for mixed document formats,
+- chunking and source-unit segmentation,
+- metadata-aware retrieval and ranking,
+- lifecycle and freshness controls,
+- provenance-aware answer generation,
+- and evaluation surfaces for diagnostic inspection.
+
+These are described more fully in the operational documents under docs/.
 
 ## Operational Design Docs
-The README is intentionally philosophy-first and status-oriented. Detailed operational and implementation design is maintained in the docs set below.
+The README is intentionally framework-oriented and explanatory. Detailed implementation notes, status tracking, and evolving design details are maintained in the docs set below.
 
 - Implementation tracking: docs/implementation-status.md
 - Metadata model: docs/metadata-model.md
@@ -137,123 +122,22 @@ The README is intentionally philosophy-first and status-oriented. Detailed opera
 - Design and contract docs: docs/
 
 ## Framework Capabilities
-### Ingestion - Status: Implemented (baseline)
-Current implementation baseline:
-- Parses txt, md, json, csv, html/htm, mhtml/mht, pdf, docx, pptx, xlsx/xls.
-- Uses recursive JSON flattening for nested dict/list paths.
-- Adds DOCX/PPTX/XLSX/XLS table metadata (table_id, row_count, column_count, header_fields).
-- Adds nested multipart MHTML part handling with html/plain decode fallback.
-- Adds baseline PDF table extraction with text fallback.
-- Emits extraction_method and extraction_ts metadata and propagates image markers where non-text objects are detected.
+The reference implementation demonstrates the framework's main capabilities across five core areas:
 
-Roadmap targets:
-- parser-level diagnostics and richer extraction quality signaling,
-- stronger PDF table guardrails for high-assurance row grounding.
+- ingestion and normalization of mixed document formats,
+- chunking and source-unit segmentation,
+- metadata-aware retrieval and ranking,
+- provenance-aware answer generation and evidence presentation,
+- and evaluation surfaces for inspecting retrieval behavior and failure modes.
 
-### Chunking - Status: Implemented (baseline)
-Current implementation baseline:
-- Creates prose chunks with chunk size, overlap, and minimum word controls.
-- Applies configurable lexical cohesion splitting to create prose source units before chunking.
-- Detects table-like content heuristically and chunks by row windows with metadata-aware header sectioning.
-- Preserves repeated header occurrences and row-window bounds in per-chunk tabular metadata.
-- Preserves sheet-local row boundaries and absolute/local row offsets for XLSX/XLS chunk traceability.
-- Applies chunk-type overlap policy with normalized defaults: prose min chunk size 20 words with overlap clamped below chunk size, tabular min 1 row with overlap clamped below window size.
-- Preserves source-unit boundaries in chunk metadata and propagates chunk/ingestion metadata through retrieval outputs.
-- Suppresses duplicate full-document fingerprints during indexing.
+The detailed mechanics for each area are documented in the operational design docs under docs/.
 
-Roadmap targets:
-- tune cohesion thresholds and segmentation policy by domain profile.
-
-### Schema-Conscious Retrieval and Metadata-First Scoring - Status: Implemented (baseline) / Partial
-Current implementation baseline:
-- Query expansion from config/synonyms.json.
-- Lexical retrieval with configurable similarity metrics (overlap, jaccard, containment) and configurable metadata weighting rules.
-- Persisted repeated-boilerplate signals with configurable boilerplate penalty factors during ranking.
-- Table-aware boosting tied to tabular intent and row/header matches.
-- TF-IDF backend with cosine normalization.
-- Vector backend with configurable embedding adapter boundary (default hashing embedder) and vector similarity metric options (cosine, dot, euclidean).
-- Hybrid lexical + TF-IDF reciprocal-rank-fusion scaffold via retrieval interfaces.
-- top_k and minimum retrieval score controls.
-- Retrieval diagnostics output mode for query terms, candidate pruning counters, and final rank explanations.
-
-Roadmap targets:
-- calibration tooling and richer domain profiling for retrieval behavior.
-
-### Provenance and Evidence Presentation - Status: Implemented (baseline)
-Current implementation baseline:
-- API returns contract_version, message, citations_summary, citations, collapsed_citations, answer, confidence.
-- Provenance completeness validator is integrated and surfaced in diagnostics/evaluation.
-- Citation-quality checks enforce snippet adequacy, source traceability, and duplicate-policy behavior before citation emission.
-- Frontend renders answer-first with right-side evidence drawer.
-- Evidence cards are visible and low-signal cards can be collapsed.
-
-Roadmap targets:
-- source-resolvable links and richer citation metadata validation.
-
-### Lifecycle and Freshness - Status: Implemented (baseline)
-Current implementation baseline:
-- Lifecycle state is persisted in a file-backed store keyed by source_unit_id.
-- Chunks include lifecycle timestamps, status, and soft-delete markers.
-- Retrieval enforces lifecycle policy filters (soft-delete exclusion, status allow/deny, freshness cutoff) with diagnostics.
-
-Roadmap targets:
-- lifecycle audit reporting and richer re-ingestion compliance telemetry.
-
-### Confidence Assessment - Status: Implemented (baseline)
-Current implementation baseline:
-- API exposes confidence signal (high, low, abstain) produced by a resolver using extraction/lifecycle/retrieval inputs.
-
-Roadmap targets:
-- domain overlays and richer confidence debug traces.
-
-### Domain Profiles and Ontology/Taxonomy Tailoring - Status: Implemented (baseline)
-Current implementation baseline:
-- profiles/default.json is loadable through RagConfig.from_profile.
-- base framework ontology is defined in config/scarag_base_ontology.json and referenced by profiles/default.json taxonomy.concepts_path.
-- RagConfig.from_profile validates taxonomy.concepts_path existence and required SCARAG ontology concept coverage.
-- profiles/default.json taxonomy.doc_type_taxonomy_path points to config/scarag_doc_type_taxonomy.json for framework-generic doc_type inference/extension defaults.
-- retrieval overlay preferred_doc_types and lower_priority_doc_types apply doc_type weighting overrides without requiring domain NLP datasets.
-- Synonym and tabular intent vocabulary are configurable in config/synonyms.json.
-
-Roadmap targets:
-- richer domain profiles,
-- profile overlays for retrieval/lifecycle/confidence,
-- ontology/taxonomy governance workflows.
-
-### Tabular Grounding and Abstention - Status: Implemented (baseline)
-Current implementation baseline:
-- Tabular intent detection exists.
-- If tabular intent is detected and no tabular evidence is retrieved, the system abstains.
-- Strict matched-row evidence selection and grounding trace output are implemented.
-- Schema-style fallback policy is defined and limited to structure-only cases.
-- Explicit PDF table grounding limits are defined for ambiguous extraction cases.
-
-Roadmap targets:
-- extend corpus-specific tabular evaluation and tuning.
-
-### Evaluation as Diagnosis - Status: Implemented (baseline)
-Current implementation baseline:
-- scripts/run_eval.py runs offline evaluation and writes JSON/Markdown reports in eval/reports.
-- Baseline metrics include retrieval, provenance completeness, abstention rate, tabular compliance, lifecycle exclusion compliance, confidence/tabular expectation alignment, tabular answer success, tabular abstention correctness, plus lexical faithfulness_proxy and expectation-field correctness_proxy.
-- Dataset loading now includes sanity checks with malformed-row reporting in report outputs (`invalid_json`, `invalid_row_shape`, `missing_query`).
-- scripts/reset_eval_workspace.py provides repeatable cleanup for eval artifacts; use `--dry-run` to preview and `--confirm` to apply deletions.
-
-Roadmap targets:
-- expanded datasets in eval/datasets,
-- richer semantic and human-reviewed evaluation layers.
-
-### Framework Versus Implementation Boundaries - Status: Implemented
+## Framework Versus Implementation Boundaries
 SCARAG intentionally separates framework primitives from implementation-specific choices.
 
-Framework-owned surfaces in this repo:
-- ingestion, chunking, retrieval baseline,
-- answer contract and evidence presentation baseline,
-- offline diagnostic evaluation baseline.
+Framework-owned surfaces in this repository include the core retrieval and evidence pipeline, reference API and UI structure, and baseline evaluation tooling.
 
-Implementation-owned surfaces:
-- live LLM provider integration,
-- deployment topology, auth, and observability,
-- domain-specific policy and ontology governance.
+Implementation-owned surfaces include live provider integration, deployment topology, authentication, observability, and domain-specific ontology or policy governance.
 
 For explicit deployment ownership boundaries, see docs/deployment-boundaries.md.
 

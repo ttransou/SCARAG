@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "profile_id": "humanities",
+  "name": "humanities",
+  "display_name": "Humanities",
+  "description": "Profile for archives, editions, oral histories, and cultural heritage materials.",
+  "synonyms_path": "config/humanities_synonyms.json",
+  "authority_references": [
+    "Getty Research Institute: Union List of Artist Names (ULAN)",
+    "Getty Art & Architecture Thesaurus (AAT)"
+  ],
+  "retrieval": {
+    "preferred_doc_types": ["note", "report", "archival_record", "edition"],
+    "lower_priority_doc_types": ["table"],
+    "boost_terms": [
+      "provenance",
+      "attribution",
+      "edition",
+      "translation",
+      "archive",
+      "annotation",
+      "context"
+    ],
+    "tabular_intent_terms": []
+  },
+  "lifecycle": {
+    "preferred_statuses": ["reviewed", "active", "pending_review"],
+    "excluded_statuses": ["draft", "retired", "deleted"],
+    "freshness_days_default": 365,
+    "missing_timestamp_policy": "include"
+  },
+  "confidence": {
+    "prefer_structured_for": ["archival_record", "edition", "primary_source"],
+    "lower_confidence_when": [
+      "source_is_stale",
+      "lifecycle_status_missing",
+      "contradictory_sources_present"
+    ],
+    "abstention_triggers": ["insufficient_evidence"]
+  },
+  "taxonomy": {
+    "concepts_path": "config/scarag_base_ontology.json",
+    "doc_type_taxonomy_path": "config/humanities_doc_type_taxonomy.json"
+  },
+  "boilerplate_policy": {
+    "allow_patterns": [],
+    "block_patterns": [],
+    "apply_to_repeated_only": true
+  }
+}

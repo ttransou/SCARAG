@@ -1,0 +1,68 @@
+{
+  "taxonomy_id": "scarag_doc_type_humanities",
+  "version": "1.0.0",
+  "default_doc_type": "note",
+  "extension_defaults": {
+    ".pdf": "report",
+    ".md": "note",
+    ".xml": "primary_source"
+  },
+  "source_overrides": [
+    {
+      "contains": ["altarpiece", "painting", "sculpture", "print", "drawing", "catalog entry"],
+      "doc_type": "art_work"
+    },
+    {
+      "contains": ["novel", "poem", "play", "short story", "literary analysis"],
+      "doc_type": "literary_work"
+    },
+    {
+      "contains": ["finding aid", "collection guide", "catalog"],
+      "doc_type": "archival_record"
+    },
+    {
+      "contains": ["manuscript", "letter", "diary", "charter"],
+      "doc_type": "primary_source"
+    },
+    {
+      "contains": ["critical edition", "translated edition", "facsimile"],
+      "doc_type": "edition"
+    },
+    {
+      "contains": ["oral history", "interview transcript", "testimony"],
+      "doc_type": "oral_history"
+    }
+  ],
+  "doc_types": {
+    "primary_source": {
+      "patterns": ["primary source", "manuscript", "letter", "diary", "charter", "notebook"]
+    },
+    "secondary_source": {
+      "patterns": ["scholarly article", "monograph", "critical essay", "interpretation", "study"]
+    },
+    "archival_record": {
+      "patterns": ["archive", "archival record", "finding aid", "collection guide", "catalog entry"]
+    },
+    "edition": {
+      "patterns": ["edition", "critical edition", "translation", "transcription", "facsimile"]
+    },
+    "oral_history": {
+      "patterns": ["oral history", "interview transcript", "testimony", "recorded interview"]
+    },
+    "scholarly_note": {
+      "patterns": ["annotation", "commentary", "research note", "field note", "marginalia"]
+    },
+    "art_work": {
+      "patterns": ["art work", "painting", "sculpture", "print", "drawing", "altarpiece", "iconography"]
+    },
+    "literary_work": {
+      "patterns": ["literary work", "novel", "poem", "play", "short story", "literary analysis"]
+    },
+    "report": {
+      "patterns": ["report", "summary", "analysis", "findings"]
+    },
+    "note": {
+      "patterns": ["note", "memo", "reference", "working note"]
+    }
+  }
+}
