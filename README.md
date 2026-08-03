@@ -1,29 +1,45 @@
-# SCARAG
+# SCARAG 🐦‍⬛
 Schema-Conscious Agnostic RAG (Retrieval-Augmented Generation)
 
 **Metadata-first RAG for any domain, and supported format**
 
 T. Transou - June 2026 - Active Development 🚧
 
+SCARAG is a framework for building retrieval-augmented systems that treat evidence, provenance, lifecycle state, and domain semantics as first-class design concerns. It is intended for implementors who need a grounded and auditable RAG stack rather than an opaque text-only retrieval shortcut.
+
+## Table of Contents
+- [One-Sentence Claim](#one-sentence-claim)
+- [Why SCARAG Exists](#why-scarag-exists)
+- [Framework Positioning](#framework-positioning)
+- [Core Premise](#core-premise)
+- [What the Name Means](#what-the-name-means)
+- [Design and Evaluation Philosophy](#design-and-evaluation-philosophy)
+- [Architecture at a Glance](#architecture-at-a-glance)
+- [Framework Components](#framework-components)
+- [Operational Design Docs](#operational-design-docs)
+- [Current Public Surfaces](#current-public-surfaces)
+- [Framework Capabilities](#framework-capabilities)
+- [Framework Versus Implementation Boundaries](#framework-versus-implementation-boundaries)
+- [Reality Snapshot](#reality-snapshot)
+- [Environment Assumptions](#environment-assumptions)
+- [Run the Reference Stack (React + FastAPI)](#run-the-reference-stack-react--fastapi)
+- [Contributor Guide](#contributor-guide)
+- [Repo Map (Current)](#repo-map-current)
+
 ## One-Sentence Claim
 SCARAG is a metadata-first RAG framework for building document-grounded systems where provenance, lifecycle, confidence, and domain semantics are first-class concerns.
 
 ## Why SCARAG Exists
-- Naive RAG treats documents as text blobs.
-- Real implementation corpora are governed artifacts.
-- Reliable answers require metadata-aware retrieval, lifecycle controls, confidence assessment, and evidence visibility.
+The central claim is simple: retrieval systems should make evidence legible, not merely fluent.
 
-SCARAG is not trying to make generation sound confident. It is designed to make evidence legible, traceable, and governable.
+- Naive RAG often treats documents as interchangeable text blobs.
+- Real corpora are governed artifacts with provenance, lifecycle state, and domain-specific meaning.
+- Reliable answers depend on metadata-aware retrieval, confidence assessment, and visible evidence.
 
-## Why a Humanities Profile Matters
-This repository includes a humanities-oriented profile because the framework is meant to be useful for people working with cultural heritage, archival, textual, and art-historical materials, not only for corporate policy or technical documentation.
-
-A humanities background can be a strong starting point for building a practical RAG workflow that is evidence-aware and interpretable. The humanities profile is intended to help someone begin with familiar concepts such as provenance, attribution, edition, transcription, and archival context, while keeping the system grounded in document metadata rather than treating everything as interchangeable text.
-
-The goal is not to claim that one profile is universally correct. It is to show a concrete, reusable pattern: implementors in other domains can create their own profiles with tailored taxonomies, synonyms, lifecycle rules, and confidence behavior. SCARAG is meant to support that kind of domain-specific adaptation rather than lock users into a single generic setup.
+SCARAG is not designed to make generation sound more confident. It is designed to make evidence legible, traceable, and governable.
 
 ## Framework Positioning
-This repository is a public framework baseline for SCARAG. It is intended to document the framework's core principles, reference implementation surfaces, and the kinds of design decisions that matter when adapting the system to a new domain.
+This repository is a public framework baseline for SCARAG. It documents the core principles, reference implementation surfaces, and design choices that matter when adapting the system to a new domain.
 
 The README is written as a practical orientation document rather than a changelog. Detailed implementation status, roadmap notes, and evolving development history belong in the more expansive documentation set under docs/.
 
@@ -35,53 +51,48 @@ SCARAG treats retrieval as evidence governance, not only similarity search.
 ## What the Name Means
 SCARAG = Schema-Conscious Agnostic RAG.
 
-Schema-Conscious:
-- schema is treated as an interpretive layer, not a convenience layer,
-- retrieval quality depends on explicit source meaning and metadata state.
+- **Schema-Conscious:** schema is treated as an interpretive layer, not a convenience layer; retrieval quality depends on explicit source meaning and metadata state.
+- **Agnostic:** the framework is domain-agnostic but not domain-indifferent; implementation teams are expected to tailor ontology, vocabulary, lifecycle policy, and confidence behavior by domain.
+- **RAG:** retrieval-augmented generation remains the operating pattern; answers are expected to remain anchored to retrieved evidence and provenance.
 
-Agnostic:
-- the framework is domain-agnostic but not domain-indifferent,
-- implementation teams are expected to tailor ontology, vocabulary, lifecycle policy, and confidence behavior by domain.
-
-RAG:
-- retrieval-augmented generation remains the operating pattern,
-- answers are expected to remain anchored to retrieved evidence and provenance.
-
-In short: agnostic does not mean generic.
+In short, agnostic does not mean generic.
 
 ## Design and Evaluation Philosophy
-First things first:
-- Schema before generation
-- Provenance before fluency
-- Domain tailoring before generic automation
-- Abstention before unsupported synthesis
-- Retrieval as evidence governance, not only similarity search
+SCARAG is guided by a few clear priorities:
+
+- **Schema before generation**
+- **Provenance before fluency**
+- **Domain tailoring before generic automation**
+- **Abstention before unsupported synthesis**
+- **Retrieval as evidence governance, not only similarity search**
 
 Evaluation is used as diagnosis, not decoration.
 
 The objective is not one benchmark number. The objective is failure visibility: ingestion, chunking, retrieval, metadata weighting, tabular grounding, abstention behavior, evidence presentation, and generation behavior should all be diagnosable.
 
-SCARAG is a framework posture, not only a code package:
-- make evidence legible before asking the model to speak,
-- treat abstention as correct behavior when support is weak,
-- keep framework primitives separate from implementation-specific deployment and provider choices.
+SCARAG is a framework posture, not only a code package. It asks implementors to make evidence legible before asking the model to speak, to treat abstention as correct behavior when support is weak, and to keep framework primitives separate from implementation-specific deployment and provider choices.
 
 ## Architecture at a Glance
 ```mermaid
 graph LR
-    subgraph Startup_Index_Build [Startup / Index Build]
-        A[Ingest source files] --> B[Normalize text and metadata]
-        B --> C[Chunk into retrievable units]
-        C --> D[Build local chunk index]
-    end
-
-    E[User in React UI] --> F[FastAPI API]
-    F --> G[Retrieve candidate chunks]
-    G --> H[Metadata-aware scoring]
-    H --> I[Generate grounded answer]
-    I --> F
-    F --> J[Return answer and citations]
+    A[Source documents] --> B[Ingest and normalize]
+    B --> C[Chunk and enrich with metadata]
+    C --> D[Retrieve evidence]
+    D --> E[Score with provenance and lifecycle signals]
+    E --> F[Generate grounded answer]
+    F --> G[Return answer with citations]
 ```
+
+A simple view of the core pipeline: ingest, structure, retrieve, score, and ground the answer in evidence.
+
+```mermaid
+flowchart TB
+    P[Profile overlay] --> T[Taxonomy and synonyms]
+    T --> R[Retrieval behavior]
+    R --> C[Confidence and lifecycle policy]
+```
+
+The profile layer adapts vocabulary, document types, and retrieval behavior without changing the framework core.
 
 ## Framework Components
 The repository includes a reference implementation that demonstrates the framework's core layers:
@@ -135,19 +146,21 @@ The detailed mechanics for each area are documented in the operational design do
 ## Framework Versus Implementation Boundaries
 SCARAG intentionally separates framework primitives from implementation-specific choices.
 
-Framework-owned surfaces in this repository include the core retrieval and evidence pipeline, reference API and UI structure, and baseline evaluation tooling.
+- **Framework-owned surfaces** include the core retrieval and evidence pipeline, reference API and UI structure, and baseline evaluation tooling.
+- **Implementation-owned surfaces** include live provider integration, deployment topology, authentication, observability, and domain-specific ontology or policy governance.
 
-Implementation-owned surfaces include live provider integration, deployment topology, authentication, observability, and domain-specific ontology or policy governance.
+### Domain-specific profiles and the humanities example
+The framework is intentionally domain-agnostic but not domain-indifferent. The repository includes a humanities-oriented profile as a concrete starting point for collections shaped by provenance, attribution, edition history, archival context, and interpretive uncertainty. That profile is documented in docs/humanities-profile.md and can serve as a template for other implementors building profiles for legal, scientific, corporate, or cultural heritage settings.
 
 For explicit deployment ownership boundaries, see docs/deployment-boundaries.md.
 
 ## Reality Snapshot
-- Generation modes available: extractive (default), mock, live placeholder.
+- Generation modes available: extractive (default), mock, and live placeholder.
 - Live mode is an adapter hook and currently returns a clear provider-not-configured message.
 - Generation returns structured grounding diagnostics, including abstention reason codes and cited chunk ids, behind the API envelope.
-- The React frontend is a reference implementation and can be replaced by implementers.
-- Feedback capture is scaffolded in the UI but persistence wiring is not implemented.
-- API responses now include a `contract_version` field, and migration notes for response-field evolution are tracked in docs/api-contract-migrations.md.
+- The React frontend is a reference implementation and may be replaced by implementers.
+- Feedback capture is scaffolded in the UI, but persistence wiring is not implemented.
+- API responses include a `contract_version` field, and migration notes for response-field evolution are tracked in docs/api-contract-migrations.md.
 
 ## Environment Assumptions
 - Python: a Python 3 environment is available, and local workflow assumes a project virtual environment (for example `./.venv`).
@@ -242,33 +255,33 @@ SCARAG is informed by work in retrieval-augmented generation, attributed questio
 ### Retrieval-Augmented Generation
 
 - Lewis, Patrick, et al. “Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks.” 2020.
-  SCARAG rationale: establishes the baseline retrieve-then-generate pattern SCARAG extends with stronger metadata and provenance governance.
+  🐦‍⬛SCARAG rationale: establishes the baseline retrieve-then-generate pattern SCARAG extends with stronger metadata and provenance governance.
 
 - Gao, Yunfan, et al. “Retrieval-Augmented Generation for Large Language Models: A Survey.” 2023.
-  SCARAG rationale: frames the modern RAG design space and motivates explicit treatment of retrieval controls, chunking, and grounding tradeoffs.
+ 🐦‍⬛SCARAG rationale: frames the modern RAG design space and motivates explicit treatment of retrieval controls, chunking, and grounding tradeoffs.
 
 - Asai, Akari, et al. “Self-RAG: Learning to Retrieve, Generate, and Critique through Self-Reflection.” 2023.
-  SCARAG rationale: informs critique/abstention-oriented behavior and supports the framework posture that generation should reflect evidence quality.
+ 🐦‍⬛SCARAG rationale: informs critique/abstention-oriented behavior and supports the framework posture that generation should reflect evidence quality.
 
 ### RAG Evaluation
 
 - Es, Shahul, et al. “RAGAS: Automated Evaluation of Retrieval Augmented Generation.” 2023.
-  SCARAG rationale: supports layered evaluation dimensions (faithfulness, context quality, answer relevance) beyond single-score benchmarking.
+  🐦‍⬛SCARAG rationale: supports layered evaluation dimensions (faithfulness, context quality, answer relevance) beyond single-score benchmarking.
 
 ### Attribution and Source Grounding
 
 - Bohnet, Bernd, et al. “Attributed Question Answering: Evaluation and Modeling for Attributed Large Language Models.” 2022.
-  SCARAG rationale: reinforces attribution as a first-class output requirement rather than optional UI decoration.
+  🐦‍⬛SCARAG rationale: reinforces attribution as a first-class output requirement rather than optional UI decoration.
 
 - Yue, Xiang, et al. “Automatic Evaluation of Attribution by Large Language Models.” 2023.
-  SCARAG rationale: informs evaluation expectations for citation support and provenance completeness.
+  🐦‍⬛SCARAG rationale: informs evaluation expectations for citation support and provenance completeness.
 
 - Nakano, Reiichiro, et al. “WebGPT: Improving the Factual Accuracy of Language Models through Web Browsing.” 2021.
-  SCARAG rationale: motivates explicit evidence exposure and reviewer-traceable support in grounded responses.
+  🐦‍⬛SCARAG rationale: motivates explicit evidence exposure and reviewer-traceable support in grounded responses.
 
 ### Instruction-Following and Human Feedback
 
 - Ouyang, Long, et al. “Training Language Models to Follow Instructions with Human Feedback.” 2022.
-  SCARAG rationale: informs human-in-the-loop alignment posture while preserving abstention and evidence-backed answer constraints.
+  🐦‍⬛SCARAG rationale: informs human-in-the-loop alignment posture while preserving abstention and evidence-backed answer constraints.
 
 Where SCARAG makes claims about robustness, abstention, provenance, confidence, or evaluation design, implementation work should prefer cited literature and explicit diagnostics over unsupported assertions.
