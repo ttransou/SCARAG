@@ -10,6 +10,29 @@ The evaluation strategy should therefore answer a practical question:
 
 **Where did the system succeed or fail, and why?**
 
+## **Proving Context-Layer Claims**
+
+If SCARAG is described as a context layer, that claim should be testable.
+
+Context-layer maturity is demonstrated when the system can show, with repeatable evidence, that:
+
+* context is structured before generation (schema, source units, extraction metadata);
+* context is governed before generation (lifecycle, freshness, status, soft-delete policy);
+* context is attributable after generation (citation and provenance completeness);
+* context can trigger refusal when evidence is insufficient (abstention correctness);
+* context behavior can be diagnosed independently from model fluency (layered metrics).
+
+Minimum proof set for framework-level claims:
+
+* provenance completeness;
+* lifecycle and freshness compliance;
+* tabular grounding compliance;
+* abstention correctness;
+* retrieval quality and ranking visibility;
+* answer-to-citation alignment.
+
+A system that cannot demonstrate these behaviors should not claim context-layer governance, even if answer text appears fluent.
+
 ## **Evaluation Position**
 
 SCARAG supports an offline-first evaluation approach.

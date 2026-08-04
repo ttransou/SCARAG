@@ -6,6 +6,26 @@ A naive RAG pipeline treats source material as text to be split, embedded, retri
 
 SCARAG is built around the belief that those signals are not secondary implementation details. They are the foundation of reliable retrieval.
 
+## **Context Layer, Without Hype**
+
+"Context layer" is often used as a vague product label. In SCARAG it has a narrow meaning:
+
+**The context layer is the governed evidence assembly boundary between corpus ingestion and answer generation.**
+
+It is responsible for:
+
+1. transforming raw documents into traceable source units and chunks;
+2. enforcing metadata, lifecycle, and freshness policy before evidence is eligible for answering;
+3. surfacing provenance and confidence-relevant signals needed for auditable generation;
+4. refusing unsupported answer paths through abstention and grounding guardrails.
+
+By this definition, SCARAG is not a prompt wrapper and not a generic vector middleware.
+It is a policy-bearing context layer that determines which evidence is admissible, explainable, and citable.
+
+The practical implication is simple: generation quality is downstream of context quality.
+If context is ungoverned, fluent answers can still be wrong.
+If context is governed, answer behavior becomes diagnosable and improvable.
+
 The premise is simple:
 
 **A RAG system cannot be meaningfully grounded unless it understands the structure, status, and semantics of the evidence it retrieves.**

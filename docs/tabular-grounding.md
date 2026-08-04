@@ -2,6 +2,21 @@
 
 This document defines row-grounded answering rules for tabular intent.
 
+## Tabular Grounding Gate (Baseline)
+
+```mermaid
+flowchart TD
+	Q[Query] --> I{Tabular intent detected?}
+	I -- No --> N[Use normal grounding path]
+	I -- Yes --> M[Find matched table rows]
+	M --> R{Matched row evidence available?}
+	R -- No --> A[Abstain with tabular_row_evidence_missing]
+	R -- Yes --> S{Row and header structure usable?}
+	S -- No --> A
+	S -- Yes --> G[Allow row-grounded answer]
+	G --> C[Emit tabular trace and citations]
+```
+
 ## Current Public Baseline
 - tabular intent detection,
 - strict row-grounded tabular policy: tabular intent answers must be backed by matched table rows,

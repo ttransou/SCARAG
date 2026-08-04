@@ -7,6 +7,8 @@ T. Transou - June 2026 - Active Development 🚧
 
 SCARAG is a framework for building retrieval-augmented systems that treat evidence, provenance, lifecycle state, and domain semantics as first-class design concerns. It is intended for implementors who need a grounded and auditable RAG stack rather than an opaque text-only retrieval shortcut.
 
+SCARAG functions as a governed context layer: detailed definition and proof criteria are documented in [docs/philosophy.md](docs/philosophy.md) and [docs/evaluation-blueprint.md](docs/evaluation-blueprint.md).
+
 ## Table of Contents
 - [One-Sentence Claim](#one-sentence-claim)
 - [Why SCARAG Exists](#why-scarag-exists)
@@ -104,33 +106,18 @@ The repository includes a reference implementation that demonstrates the framewo
 - provenance-aware answer generation,
 - and evaluation surfaces for diagnostic inspection.
 
-These are described more fully in the operational documents under docs/.
+These are described in detail in the [Documentation Map (Current)](#documentation-map-current).
 
 ## Operational Design Docs
-The README is intentionally framework-oriented and explanatory. Detailed implementation notes, status tracking, and evolving design details are maintained in the docs set below.
-
-- Implementation tracking: docs/implementation-status.md
-- Metadata model: docs/metadata-model.md
-- Retrieval design: docs/retrieval-design.md
-- Lifecycle and freshness design: docs/lifecycle-design.md
-- Confidence framework design: docs/confidence-framework.md
-- Tabular grounding design: docs/tabular-grounding.md
-- Grounded answer contract: docs/generation-contract.md
-- API contract migrations: docs/api-contract-migrations.md
-- Deployment boundaries: docs/deployment-boundaries.md
-- NLP tailoring starter guide: docs/nlp-tailoring-guide.md
+The README remains framework-oriented. Detailed implementation notes, contracts, profile guidance, and evaluation references are maintained in the [Documentation Map (Current)](#documentation-map-current).
 
 ## Current Public Surfaces
-- Core package: scarag/
-- Reference API: api_server.py
-- Reference UI: frontend/
-- Operational scripts: scripts/
-- Configuration and synonyms: config/
-- Fallback template scaffold: config/fallback_template.json
-- Domain profiles: profiles/
-- Offline evaluation workspace: eval/
-- Regression tests: tests/
-- Design and contract docs: docs/
+- Core framework package: [scarag/](scarag)
+- Reference API: [api_server.py](api_server.py)
+- Reference UI: [frontend/](frontend)
+- Operations and evaluation scripts: [scripts/](scripts)
+- Configuration and profiles: [config/](config) and [profiles/](profiles)
+- Validation and diagnostics assets: [tests/](tests), [eval/](eval), and [docs/](docs)
 
 ## Framework Capabilities
 The reference implementation demonstrates the framework's main capabilities across five core areas:
@@ -141,7 +128,7 @@ The reference implementation demonstrates the framework's main capabilities acro
 - provenance-aware answer generation and evidence presentation,
 - and evaluation surfaces for inspecting retrieval behavior and failure modes.
 
-The detailed mechanics for each area are documented in the operational design docs under docs/.
+The detailed mechanics for each area are documented in the [Documentation Map (Current)](#documentation-map-current).
 
 ## Framework Versus Implementation Boundaries
 SCARAG intentionally separates framework primitives from implementation-specific choices.
@@ -150,9 +137,9 @@ SCARAG intentionally separates framework primitives from implementation-specific
 - **Implementation-owned surfaces** include live provider integration, deployment topology, authentication, observability, and domain-specific ontology or policy governance.
 
 ### Domain-specific profiles and the humanities example
-The framework is intentionally domain-agnostic but not domain-indifferent. The repository includes a humanities-oriented profile as a concrete starting point for collections shaped by provenance, attribution, edition history, archival context, and interpretive uncertainty. That profile is documented in docs/humanities-profile.md and can serve as a template for other implementors building profiles for legal, scientific, corporate, or cultural heritage settings.
+The framework is intentionally domain-agnostic but not domain-indifferent. The repository includes a humanities-oriented profile as a concrete starting point for collections shaped by provenance, attribution, edition history, archival context, and interpretive uncertainty. That profile is documented in [docs/humanities-profile.md](docs/humanities-profile.md) and can serve as a template for other implementors building profiles for legal, scientific, corporate, or cultural heritage settings.
 
-For explicit deployment ownership boundaries, see docs/deployment-boundaries.md.
+For explicit deployment ownership boundaries, see [docs/deployment-boundaries.md](docs/deployment-boundaries.md).
 
 ## Reality Snapshot
 - Generation modes available: extractive (default), mock, and live placeholder.
@@ -160,7 +147,7 @@ For explicit deployment ownership boundaries, see docs/deployment-boundaries.md.
 - Generation returns structured grounding diagnostics, including abstention reason codes and cited chunk ids, behind the API envelope.
 - The React frontend is a reference implementation and may be replaced by implementers.
 - Feedback capture is scaffolded in the UI, but persistence wiring is not implemented.
-- API responses include a `contract_version` field, and migration notes for response-field evolution are tracked in docs/api-contract-migrations.md.
+- API responses include a `contract_version` field, and migration notes for response-field evolution are tracked in [docs/api-contract-migrations.md](docs/api-contract-migrations.md).
 
 ## Environment Assumptions
 - Python: a Python 3 environment is available, and local workflow assumes a project virtual environment (for example `./.venv`).
@@ -213,40 +200,36 @@ Typical local workflow:
 4. Update docs when contracts or behavior change.
 
 ## Repo Map (Current)
-- scarag/
-  - config.py: RagConfig and profile loading
-  - ingestion/loader.py: file loading and format parsing
-  - pipeline.py: chunking, doc typing, thesaurus, retrieval
-  - retrieval/ranker.py: standalone overlap rank helper
-  - generation/answerer.py: extractive/mock/live answer modes
-- api_server.py
-  - FastAPI endpoints and response envelope for the reference UI
-- frontend/
-  - React reference UI and evidence drawer shell
-- scripts/
-  - run_eval.py, dedupe_corpus.py, start/reset helpers
-- eval/
-  - datasets and reports workspace (gitkeep placeholders in clean clone)
-- tests/
-  - API and dependency/parser regression tests
-- docs/
-  - architecture notes, UI contract, evaluation blueprint
+```text
+.
+├── scarag/
+│   ├── config.py                 # RagConfig and profile loading
+│   ├── ingestion/loader.py       # File loading and format parsing
+│   ├── pipeline.py               # Chunking, doc typing, thesaurus, retrieval
+│   ├── retrieval/ranker.py       # Standalone overlap rank helper
+│   └── generation/answerer.py    # Extractive/mock/live answer modes
+├── api_server.py                 # FastAPI endpoints and response envelope for the reference UI
+├── frontend/                     # React reference UI and evidence drawer shell
+├── scripts/                      # run_eval.py, dedupe_corpus.py, start/reset helpers
+├── eval/                         # Datasets and reports workspace (gitkeep placeholders in clean clone)
+├── tests/                        # API and dependency/parser regression tests
+└── docs/                         # Architecture notes, UI contract, evaluation blueprint
+```
 
 ## Testing
 ```bash
 python -m pytest tests
 ```
 
-## Documentation Expansion Plan
-If README detail continues to grow, keep philosophy and matrix here, and move deep operational design into dedicated docs:
-- docs/implementation-status.md
-- docs/metadata-model.md
-- docs/retrieval-design.md
-- docs/lifecycle-design.md
-- docs/confidence-framework.md
-- docs/tabular-grounding.md
+## Documentation Map (Current)
+README stays high-level. Detailed design and behavior documentation lives in [docs/](docs).
 
-These files are recommended next additions for active implementation clarity.
+Recommended entry points:
+- Framework status and orientation: [docs/implementation-status.md](docs/implementation-status.md), [docs/philosophy.md](docs/philosophy.md)
+- Core architecture and contracts: [docs/metadata-model.md](docs/metadata-model.md), [docs/retrieval-design.md](docs/retrieval-design.md), [docs/lifecycle-design.md](docs/lifecycle-design.md), [docs/confidence-framework.md](docs/confidence-framework.md), [docs/tabular-grounding.md](docs/tabular-grounding.md), [docs/generation-contract.md](docs/generation-contract.md), [docs/api-contract-migrations.md](docs/api-contract-migrations.md)
+- Frontend behavior: [docs/reference-ui-contract.md](docs/reference-ui-contract.md), [docs/frontend-principles.md](docs/frontend-principles.md), [docs/frontend-state-model.md](docs/frontend-state-model.md)
+- Profiles and tailoring: [docs/profile-catalog.md](docs/profile-catalog.md), [docs/humanities-profile.md](docs/humanities-profile.md), [docs/nlp-tailoring-guide.md](docs/nlp-tailoring-guide.md)
+- Evaluation: [docs/evaluation-blueprint.md](docs/evaluation-blueprint.md)
 
 ## Bibliography
 

@@ -2,6 +2,25 @@
 
 This document defines confidence assessment design and rollout stages.
 
+## Confidence Decision Flow (Baseline)
+
+```mermaid
+flowchart TD
+	Q[Query plus Retained Evidence] --> A{Evidence retained?}
+	A -- No --> Z[Label abstain]
+	A -- Yes --> B[Compute base score from retrieval and extraction tier]
+	B --> C[Apply lifecycle temporal decay]
+	C --> D[Apply intent-aware adjustment]
+	D --> E{Conflict unresolved?}
+	E -- Yes --> F[Lower score and preserve disagreement]
+	E -- No --> G[Keep adjusted score]
+	F --> H{Threshold band}
+	G --> H{Threshold band}
+	H -- High band --> I[Label high]
+	H -- Low band --> J[Label low]
+	H -- Below low --> Z
+```
+
 ## Current Public Baseline
 - lightweight confidence signal in API responses: high, low, abstain.
 - confidence input fields emitted on evidence metadata: base_extraction_tier, lifecycle_status, has_deletion_mark, tabular_evidence.

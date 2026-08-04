@@ -2,6 +2,23 @@
 
 This document defines the baseline answer-generation contract for SCARAG.
 
+## Answer and Citation Coupling (Baseline)
+
+```mermaid
+sequenceDiagram
+	participant RET as Retrieval
+	participant GEN as Generator
+	participant API as API Contract Layer
+	participant PROV as Provenance Validator
+
+	RET->>GEN: Retained evidence context
+	GEN-->>API: answer text plus cited_chunk_ids plus abstention reason
+	API->>API: shape citations from cited_chunk_ids only
+	API->>PROV: validate citation completeness and quality
+	PROV-->>API: validation result and enforcement notes
+	API-->>API: emit answer, citations, confidence, diagnostics
+```
+
 ## Purpose
 
 Generation is allowed to present evidence. It is not allowed to outrun evidence.

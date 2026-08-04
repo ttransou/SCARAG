@@ -2,6 +2,24 @@
 
 This document captures retrieval architecture and tuning guidance for active framework development.
 
+## Retrieval Flow (Baseline)
+
+```mermaid
+flowchart TD
+	Q[Query] --> E[Thesaurus Expansion]
+	E --> B[Backend Scoring]
+	B --> L[Lexical Backend]
+	B --> T[TF-IDF Backend]
+	B --> V[Vector Backend]
+	L --> F[Hybrid Fusion or Single Backend Selection]
+	T --> F
+	V --> F
+	F --> M[Metadata Weights and Penalties]
+	M --> P[Lifecycle and Policy Filters]
+	P --> R[Ranked Chunks]
+	R --> D[Diagnostics Output]
+```
+
 ## Current Public Baseline
 - lexical overlap scoring,
 - lexical similarity metric selectors (overlap, jaccard, containment),

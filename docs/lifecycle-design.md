@@ -2,6 +2,21 @@
 
 This document specifies lifecycle and freshness behavior for active framework development.
 
+## Lifecycle State Model (Baseline)
+
+```mermaid
+stateDiagram-v2
+	[*] --> active
+	active --> active: unchanged re-ingestion
+	active --> active: changed re-ingestion and upsert
+	active --> stale: freshness threshold exceeded
+	stale --> active: re-ingestion and upsert
+	active --> soft_deleted: soft-delete mark applied
+	stale --> soft_deleted: soft-delete mark applied
+	soft_deleted --> purged: hard cleanup utility
+	purged --> [*]
+```
+
 ## Current Public Baseline
 - basic source metadata propagation on chunks,
 - file-backed lifecycle state store in place (source_unit_id, timestamps, status, soft-delete mark field),
