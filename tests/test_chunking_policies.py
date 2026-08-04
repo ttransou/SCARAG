@@ -109,3 +109,31 @@ def test_prose_chunks_do_not_cross_source_unit_boundaries(tmp_path: Path) -> Non
             chunk["prose_chunk_metadata"]["absolute_chunk_start_word_index"]
             >= chunk["source_unit_boundary"]["unit_start_word_index"]
         )
+
+
+def test_comma_delimited_prose_lists_are_not_classified_as_tabular(tmp_path: Path) -> None:
+    config = RagConfig(
+        lifecycle_state_path=str(tmp_path / "lifecycle-state.json"),
+        chunk_size=120,
+        overlap=0,
+        min_chunk_words=1,
+    )
+    docs = [
+        {
+            "source": str(tmp_path / "play-notes.txt"),
+            "text": (
+                "Characters in the Play\n"
+                "OTHELLO, a Moorish general in the Venetian army\n"
+                "DESDEMONA, a Venetian lady\n"
+                "BRABANTIO, a Venetian senator\n"
+                "IAGO, Othello's standard-bearer\n"
+            ),
+            "doc_type": "unknown",
+        }
+    ]
+
+    chunks = build_chunk_index(docs, config)
+
+    assert chunks
+    assert all(chunk["is_tabular"] is False for chunk in chunks)
+    assert all(chunk["source_unit_kind"] == "prose" for chunk in chunks)
