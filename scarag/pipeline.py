@@ -822,7 +822,6 @@ def build_chunk_index(
         config.lifecycle_state_path,
         audit_log_path=config.lifecycle_audit_log_path,
         audit_logging_enabled=config.lifecycle_audit_logging_enabled,
-        persistence_enabled=config.lifecycle_persistence_enabled,
     )
 
     for document in documents:
