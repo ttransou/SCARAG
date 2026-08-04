@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from scarag.config import RagConfig
-from scarag.pipeline import ingest_with_diagnostics
+from scarag.pipeline import ingest_documents_with_diagnostics
 
 
 def test_ingestion_diagnostics_contract_includes_parser_skip_reason_and_chunk_counts(
@@ -22,16 +22,18 @@ def test_ingestion_diagnostics_contract_includes_parser_skip_reason_and_chunk_co
     config = RagConfig(
         data_path=str(data_dir),
         lifecycle_state_path=str(tmp_path / "lifecycle-state.json"),
-        lifecycle_persistence_enabled=False,
+        ingestion_persist_lifecycle_state=False,
     )
 
-    chunks, diagnostics = ingest_with_diagnostics(data_dir, config)
+    result = ingest_documents_with_diagnostics(data_dir, config)
+    chunks = result["chunks"]
+    diagnostics = result["diagnostics"]
 
     assert chunks
     assert "files" in diagnostics
     assert "summary" in diagnostics
     assert diagnostics["summary"]["total_chunks"] == len(chunks)
-    assert isinstance(diagnostics["summary"]["inferred_type_summary"], dict)
+    assert isinstance(diagnostics["summary"]["inferred_doc_type_counts"], dict)
 
     by_source = {entry["source"]: entry for entry in diagnostics["files"]}
     xml_entry = by_source[str(data_dir / "play.xml")]
