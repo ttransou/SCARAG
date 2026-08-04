@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
+import subprocess
 import zipfile
 from importlib import import_module
 from email import policy
@@ -89,6 +91,48 @@ def _parse_legacy_doc(path: Path) -> str:
 
     fallback = re.sub(r"[^\x20-\x7E\n\t]", " ", decoded)
     return re.sub(r"\s+", " ", fallback).strip()
+
+
+def _legacy_doc_quality_score(text: str) -> float:
+    normalized = str(text).strip()
+    if not normalized:
+        return 0.0
+
+    alpha_chars = sum(1 for char in normalized if char.isalpha())
+    printable_chars = sum(1 for char in normalized if char.isprintable())
+    noisy_markers = ("bjbj", "\x00", " BT ", " DT ", " HYPERLINK")
+    marker_penalty = sum(1 for marker in noisy_markers if marker in normalized)
+
+    alpha_ratio = alpha_chars / max(1, len(normalized))
+    printable_ratio = printable_chars / max(1, len(normalized))
+    return alpha_ratio + printable_ratio - (0.05 * marker_penalty)
+
+
+def _parse_legacy_doc_with_helper(path: Path) -> tuple[str, str] | None:
+    helper_specs = (
+        ("antiword", ["antiword", str(path)]),
+        ("catdoc", ["catdoc", str(path)]),
+    )
+    for helper_name, command in helper_specs:
+        if shutil.which(helper_name) is None:
+            continue
+        try:
+            result = subprocess.run(
+                command,
+                check=False,
+                capture_output=True,
+                text=True,
+                timeout=8,
+            )
+        except (OSError, subprocess.SubprocessError, ValueError):
+            continue
+
+        if result.returncode != 0:
+            continue
+        cleaned = str(result.stdout or "").strip()
+        if cleaned:
+            return cleaned, helper_name
+    return None
 
 
 def _parse_docx(path: Path) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
@@ -477,6 +521,7 @@ def _record_ingestion_file(
 def _is_internal_ingestion_artifact(path: Path) -> bool:
     name = path.name
     return name in {
+        ".gitkeep",
         ".scarag_lifecycle_state.json",
         ".scarag_lifecycle_audit.jsonl",
     }
@@ -530,6 +575,14 @@ def _load_documents_internal(data_path: str | Path) -> tuple[list[dict[str, Any]
                     skip_reason="parse_error",
                 )
                 continue
+            if suffix == ".doc":
+                helper_payload = _parse_legacy_doc_with_helper(path)
+                if helper_payload is not None:
+                    helper_text, helper_name = helper_payload
+                    if _legacy_doc_quality_score(helper_text) >= _legacy_doc_quality_score(text) + 0.05:
+                        text = helper_text
+                        extraction_method = f"doc_legacy_{helper_name}_parser"
+
             documents.append(
                 {
                     "source": str(path),
@@ -647,12 +700,24 @@ def load_documents_with_diagnostics(data_path: str | Path) -> tuple[list[dict[st
     return _load_documents_internal(data_path)
 
 
-def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
+def load_documents(
+    data_path: str | Path,
+    *,
+    include_diagnostics: bool = False,
+) -> list[dict[str, Any]] | tuple[list[dict[str, Any]], dict[str, Any]]:
     """Load a simple list of document-like records from a folder.
 
     The repository README describes a richer ingestion pipeline, but this
     reference implementation keeps the interface lightweight until real parsers
     are added.
     """
-    documents, _diagnostics = _load_documents_internal(data_path)
+    documents, diagnostics = _load_documents_internal(data_path)
+    if include_diagnostics:
+        # Backward-compatible aliases for legacy tests/callers.
+        summary = diagnostics.get("summary", {}) if isinstance(diagnostics, dict) else {}
+        if isinstance(summary, dict):
+            summary["loaded"] = int(summary.get("loaded_files", 0))
+            summary["skipped"] = int(summary.get("skipped_files", 0))
+            summary["unsupported"] = int(summary.get("unsupported_files", 0))
+        return documents, diagnostics
     return documents
