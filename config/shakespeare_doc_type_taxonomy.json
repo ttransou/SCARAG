@@ -1,0 +1,64 @@
+{
+  "taxonomy_id": "scarag_doc_type_shakespeare_test",
+  "version": "1.0.0",
+  "default_doc_type": "note",
+  "extension_defaults": {
+    ".txt": "primary_source",
+    ".md": "note",
+    ".pdf": "edition",
+    ".docx": "edition",
+    ".html": "commentary",
+    ".xml": "primary_source",
+    ".csv": "table"
+  },
+  "source_overrides": [
+    {
+      "contains": ["hamlet", "macbeth", "othello", "king_lear", "romeo_and_juliet", "the_tempest", "twelfth_night"],
+      "doc_type": "play"
+    },
+    {
+      "contains": ["sonnet", "sonnets"],
+      "doc_type": "sonnet"
+    },
+    {
+      "contains": ["folio", "quarto"],
+      "doc_type": "edition"
+    },
+    {
+      "contains": ["performance", "promptbook", "staging_notes"],
+      "doc_type": "performance_record"
+    }
+  ],
+  "doc_types": {
+    "play": {
+      "patterns": ["play", "act", "scene", "stage direction", "dramatis personae"]
+    },
+    "sonnet": {
+      "patterns": ["sonnet", "quatrain", "couplet", "iambic pentameter"]
+    },
+    "edition": {
+      "patterns": ["edition", "folio", "quarto", "variant reading", "editorial note"]
+    },
+    "primary_source": {
+      "patterns": ["transcription", "facsimile", "witness", "source text"]
+    },
+    "commentary": {
+      "patterns": ["commentary", "annotation", "analysis", "critical note"]
+    },
+    "performance_record": {
+      "patterns": ["performance", "production", "cast", "stage history"]
+    },
+    "reference": {
+      "patterns": ["glossary", "index", "reference", "appendix"]
+    },
+    "report": {
+      "patterns": ["report", "summary", "findings", "analysis"]
+    },
+    "table": {
+      "patterns": ["table", "row", "column", "dataset"]
+    },
+    "note": {
+      "patterns": ["note", "memo", "working note", "scratch"]
+    }
+  }
+}

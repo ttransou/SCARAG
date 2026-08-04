@@ -1,0 +1,18 @@
+{
+  "schema_note": "Shakespeare-oriented terms for edition practice, dramatic structure, and performance context.",
+  "terms": {
+    "folio": ["first folio", "folio text", "folio witness", "folio printing"],
+    "quarto": ["q1", "q2", "quarto witness", "quarto edition"],
+    "play": ["drama", "stage play", "dramatic work", "tragedy", "comedy", "history"],
+    "sonnet": ["poem", "lyric", "sequence", "verse"],
+    "scene": ["act scene", "dramatic scene", "episode"],
+    "soliloquy": ["monologue", "speech", "aside"],
+    "editorial": ["critical apparatus", "gloss", "annotation", "textual note"],
+    "attribution": ["authorship", "dating", "witness", "provenance"]
+  },
+  "intent_groups": {
+    "textual_criticism": ["folio", "quarto", "variant", "edition", "witness", "apparatus"],
+    "dramatic_structure": ["act", "scene", "speaker", "stage direction", "soliloquy"],
+    "performance_context": ["performance", "staging", "company", "theatre", "cast"]
+  }
+}

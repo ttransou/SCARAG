@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "profile_id": "shakespeare_test",
+  "name": "shakespeare_test",
+  "display_name": "Shakespeare Test",
+  "description": "Shakespeare-only test branch profile for mixed-format corpora, humanities-overlay baseline behavior, and candidate metadata generation before ingestion.",
+  "synonyms_path": "config/shakespeare_synonyms.json",
+  "authority_references": [
+    "Folger Shakespeare Library",
+    "Internet Shakespeare Editions"
+  ],
+  "retrieval": {
+    "preferred_doc_types": ["play", "sonnet", "edition", "primary_source"],
+    "lower_priority_doc_types": ["table"],
+    "boost_terms": [
+      "folio",
+      "quarto",
+      "act",
+      "scene",
+      "line",
+      "soliloquy",
+      "editorial"
+    ],
+    "tabular_intent_terms": []
+  },
+  "lifecycle": {
+    "preferred_statuses": ["reviewed", "active", "pending_review"],
+    "excluded_statuses": ["draft", "retired", "deleted"],
+    "freshness_days_default": 3650,
+    "missing_timestamp_policy": "include"
+  },
+  "confidence": {
+    "prefer_structured_for": ["edition", "primary_source", "reference"],
+    "lower_confidence_when": [
+      "source_is_stale",
+      "lifecycle_status_missing",
+      "contradictory_sources_present"
+    ],
+    "abstention_triggers": ["insufficient_evidence"]
+  },
+  "taxonomy": {
+    "concepts_path": "config/scarag_base_ontology.json",
+    "doc_type_taxonomy_path": "config/shakespeare_doc_type_taxonomy.json"
+  },
+  "boilerplate_policy": {
+    "allow_patterns": [],
+    "block_patterns": [],
+    "apply_to_repeated_only": true
+  }
+}
