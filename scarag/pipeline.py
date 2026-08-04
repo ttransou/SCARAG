@@ -95,6 +95,11 @@ _QUERY_SOURCE_STOPWORDS = {
     "with",
 }
 
+_SHAKESPEARE_AUTHOR_RE = re.compile(r"\bwilliam\s+shakespeare\b", re.IGNORECASE)
+_FOLGER_EDITION_RE = re.compile(r"\bfolger\s+shakespeare(?:\s+library)?\b", re.IGNORECASE)
+_ISE_EDITION_RE = re.compile(r"\binternet\s+shakespeare\s+editions?\b", re.IGNORECASE)
+_TITLE_BLOCK_EXCLUDE_RE = re.compile(r"^(act|scene|by\b|enter\b|exit\b|exeunt\b)", re.IGNORECASE)
+
 
 def _tokenize(text: str) -> list[str]:
     return [match.group(0).lower() for match in _TOKEN_RE.finditer(text)]
@@ -107,6 +112,24 @@ def _content_fingerprint(text: str) -> str:
 def _boilerplate_signal_key(text: str) -> str:
     collapsed = re.sub(r"\s+", " ", str(text).strip().lower())
     return _content_fingerprint(collapsed)
+
+
+def _is_dramatic_repetition_exempt(chunk: dict[str, Any]) -> bool:
+    doc_type = str(chunk.get("doc_type", "")).strip().lower()
+    if not doc_type.startswith("play"):
+        return False
+
+    text = str(chunk.get("text", "")).strip()
+    if not text:
+        return False
+
+    if re.search(r"\[[^\]]*(enter|exit|exeunt|aside|flourish|alarum|trumpet|sennet|within)[^\]]*\]", text, re.IGNORECASE):
+        return True
+    if re.search(r"^\s*[A-Z][A-Z\s'\-]{1,30}\.", text, re.MULTILINE):
+        return True
+    if re.search(r"^\s*(enter|exit|exeunt|aside|flourish|alarum|trumpet|sennet)\b", text, re.IGNORECASE | re.MULTILINE):
+        return True
+    return False
 
 
 def _source_unit_id(source: str) -> str:
@@ -133,6 +156,92 @@ def _source_work_metadata(source: str) -> tuple[str, str, list[str], str]:
     work_key = "_".join(work_tokens)
     work_title = " ".join(token.capitalize() for token in work_tokens)
     return work_key, work_title, work_tokens, source_format
+
+
+def _infer_reference_metadata_from_source(
+    source: str,
+    *,
+    source_work_title: str,
+    doc_type: str,
+) -> dict[str, Any]:
+    inferred: dict[str, Any] = {
+        "source": source,
+        "document_type": doc_type,
+    }
+
+    if source_work_title and source_work_title.lower() != "unknown":
+        inferred["title"] = source_work_title
+
+    source_text = str(source)
+    if _FOLGER_EDITION_RE.search(source_text):
+        inferred["edition"] = "Folger Shakespeare Library"
+    elif _ISE_EDITION_RE.search(source_text):
+        inferred["edition"] = "Internet Shakespeare Editions"
+
+    return inferred
+
+
+def _looks_like_title_line(line: str) -> bool:
+    normalized = re.sub(r"\s+", " ", str(line).strip())
+    if not normalized or len(normalized) > 120:
+        return False
+    if _TITLE_BLOCK_EXCLUDE_RE.match(normalized):
+        return False
+    tokens = _tokenize(normalized)
+    if not tokens or len(tokens) > 12:
+        return False
+    if any(token in {"william", "shakespeare", "folger", "internet", "editions"} for token in tokens):
+        return False
+    alpha_chars = [char for char in normalized if char.isalpha()]
+    if not alpha_chars:
+        return False
+    uppercase_ratio = sum(1 for char in alpha_chars if char.isupper()) / len(alpha_chars)
+    titlecase_tokens = sum(1 for token in normalized.split() if token[:1].isupper())
+    return uppercase_ratio >= 0.7 or titlecase_tokens >= max(1, len(normalized.split()) - 1)
+
+
+def _infer_reference_metadata_from_title_block(text: str) -> dict[str, Any]:
+    inferred: dict[str, Any] = {}
+    candidate_lines = [line.strip() for line in str(text).splitlines() if line.strip()][:12]
+
+    for line in candidate_lines:
+        if "author" not in inferred and _SHAKESPEARE_AUTHOR_RE.search(line):
+            inferred["author"] = "William Shakespeare"
+        if "edition" not in inferred and _FOLGER_EDITION_RE.search(line):
+            inferred["edition"] = "Folger Shakespeare Library"
+        elif "edition" not in inferred and _ISE_EDITION_RE.search(line):
+            inferred["edition"] = "Internet Shakespeare Editions"
+        if "title" not in inferred and _looks_like_title_line(line):
+            inferred["title"] = re.sub(r"\s+", " ", line).strip()
+
+    return inferred
+
+
+def _document_with_inferred_metadata(
+    document: dict[str, Any],
+    *,
+    source: str,
+    text: str,
+    doc_type: str,
+    source_work_title: str,
+) -> dict[str, Any]:
+    inferred_metadata = _infer_reference_metadata_from_source(
+        source,
+        source_work_title=source_work_title,
+        doc_type=doc_type,
+    )
+    inferred_metadata.update(_infer_reference_metadata_from_title_block(text))
+
+    existing_metadata = document.get("metadata")
+    if isinstance(existing_metadata, dict):
+        merged_metadata = dict(inferred_metadata)
+        merged_metadata.update(existing_metadata)
+    else:
+        merged_metadata = inferred_metadata
+
+    enriched_document = dict(document)
+    enriched_document["metadata"] = merged_metadata
+    return enriched_document
 
 
 def _parse_iso_ts(value: str | None) -> tuple[datetime | None, bool]:
@@ -957,6 +1066,13 @@ def build_chunk_index(
             doc_type_taxonomy,
             extraction_method,
         )
+        document = _document_with_inferred_metadata(
+            document,
+            source=source,
+            text=text,
+            doc_type=doc_type,
+            source_work_title=source_work_title,
+        )
         table_metadata = document.get("table_metadata")
         image_markers = document.get("image_markers")
         document_metadata = _document_metadata_payload(
@@ -1092,6 +1208,7 @@ def build_chunk_index(
             chunk["boilerplate_signal"] = {
                 "repeat_count": repeat_count,
                 "is_repeated": repeat_count > 1,
+                "dramatic_repetition_exempt": _is_dramatic_repetition_exempt(chunk),
             }
 
     return chunks
@@ -1330,6 +1447,9 @@ def _boilerplate_penalty_factor(chunk: dict[str, Any], config: RagConfig) -> flo
 
     signal = chunk.get("boilerplate_signal")
     if not isinstance(signal, dict):
+        return 1.0
+
+    if bool(signal.get("dramatic_repetition_exempt")):
         return 1.0
 
     repeat_count = int(signal.get("repeat_count", 1))

@@ -409,6 +409,45 @@ def test_boilerplate_penalty_demotes_repeated_chunks(tmp_path: Path) -> None:
     assert with_penalty_response.ranked_chunks[0]["source"].endswith("c.md")
 
 
+def test_boilerplate_penalty_exempts_repeated_dramatic_structure(tmp_path: Path) -> None:
+    repeated_dramatic_text = "HAMLET. [Aside] To be resolved by action tonight."
+    docs = [
+        {
+            "source": str(tmp_path / "hamlet-a.txt"),
+            "text": f"{repeated_dramatic_text}\n\n{repeated_dramatic_text}",
+            "doc_type": "play_tragedy",
+        },
+    ]
+
+    config = RagConfig(
+        lifecycle_state_path=str(tmp_path / "lifecycle-dramatic.json"),
+        retrieval_backend="lexical",
+        min_retrieval_score=0.0,
+        chunk_size=20,
+        overlap=0,
+        min_chunk_words=1,
+        boilerplate_penalty_enabled=True,
+        boilerplate_penalty_strength=0.9,
+        boilerplate_penalty_min_factor=0.2,
+    )
+    chunks = build_chunk_index(docs, config)
+
+    assert chunks
+    assert all(chunk["boilerplate_signal"]["dramatic_repetition_exempt"] for chunk in chunks)
+    assert all(float(chunk["boilerplate_signal"]["repeat_count"]) == 2 for chunk in chunks)
+
+    response = retrieve_via_interface(
+        "Hamlet aside action",
+        chunks,
+        config,
+        {"terms": {}, "intent_groups": {}},
+    )
+
+    assert response.ranked_chunks
+    components = response.ranked_chunks[0].get("score_components", {})
+    assert float(components.get("boilerplate_penalty", 0.0)) == 1.0
+
+
 def test_table_aware_boost_promotes_tabular_match_on_tabular_intent(tmp_path: Path) -> None:
     docs = [
         {

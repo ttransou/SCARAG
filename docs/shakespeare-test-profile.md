@@ -136,7 +136,7 @@ Minimum retrieval-facing metadata for basic source navigation and citation:
 - `author`
 - `document_type`
 - `act`, `scene`, `stanza`, `section`, or `page`
-- `speaker` or `attributed_person`
+- `speaker`, `attributed_person`, or `stage_cue`
 - `line_start`, `line_end`, `passage_start`, or `passage_end`
 - `source`
 - `edition`
@@ -188,6 +188,7 @@ Passage-level Tier 1 fields belong with chunk-local source-unit metadata so they
 - `page`
 - `speaker`
 - `attributed_person`
+- `stage_cue`
 - `line_start`
 - `line_end`
 - `passage_start`
@@ -197,6 +198,7 @@ Operational rule:
 
 - document-scoped facts should be safe to repeat on every chunk from the same source,
 - passage-scoped facts should be derived from the local dramatic or poetic unit and reviewed against that exact unit,
+- stage cues that follow or interrupt a speech should stay attached to that same speaking unit,
 - if a field cannot be supported by the current parser output, it should remain blank rather than guessed.
 
 ### Human verification for Tier 1
@@ -208,7 +210,7 @@ Recommended verification workflow:
 - verify `title`, `author`, `source`, and `edition` against the title block, header matter, or explicit source statement in the work,
 - verify `document_type` against the known work identity and the branch taxonomy outcome,
 - verify `act`, `scene`, `stanza`, `section`, or `page` against visible structural markers in the retrieved passage,
-- verify `speaker` or `attributed_person` against the local speech label or attribution line,
+- verify `speaker`, `attributed_person`, or `stage_cue` against the local speech label, attribution line, or explicit stage direction, including cues that trail or interrupt the same speech,
 - verify `line_start`, `line_end`, `passage_start`, and `passage_end` against the exact chunk text and source-unit boundary,
 - treat normalized values as reviewable transformations, not raw truth,
 - leave unsupported fields unset and record them as missing rather than forcing completeness.
@@ -240,6 +242,8 @@ Recommended helper set:
 	- detect `stanza` and passage grouping for sonnets or verse-heavy documents
 - speaker attribution parser
 	- detect speech labels and attributed speakers from dialogue prefixes, XML speaker tags, or line-head patterns
+- stage cue parser
+	- detect stage directions and scene-action cues from bracketed directions, XML stage tags, or conventional dramatic markers, and associate them with the nearest speaking unit when they occur within or immediately after dialogue
 - passage boundary helper
 	- compute `line_start`, `line_end`, `passage_start`, and `passage_end` from source-unit boundaries after structural parsing
 - page marker helper
@@ -251,8 +255,21 @@ Suggested implementation order:
 
 - start with filename and title-block helpers for `title`, `author`, `source`, `edition`, and candidate work identity,
 - add taxonomy resolution for `document_type`,
-- add structure and speaker parsers for `act`, `scene`, `stanza`, `section`, and `speaker`,
+- add structure, speaker, and stage-cue parsers for `act`, `scene`, `stanza`, `section`, `speaker`, and `stage_cue`,
 - finish with boundary and verification-state helpers for reviewable chunk-local metadata.
+
+Current baseline in this branch:
+
+- filename/source inference is implemented for `source`, candidate `title`, and edition cues,
+- title-block/front-matter inference is implemented for `title`, `author`, and edition cues in the opening document window,
+- taxonomy resolution supplies `document_type` once the work identity is recognized,
+- explicit ingestion metadata still overrides inferred Tier 1 values when both are present.
+
+Boilerplate safeguard for dramatic text:
+
+- repeated dramatic prose such as speaker labels and stage directions should remain eligible retrieval evidence,
+- repetition penalties should not demote chunks solely because dramatic scaffolding recurs across scenes or editions,
+- stage directions and speaker markers should be preserved as structural evidence, not collapsed into generic boilerplate.
 
 ## Acceptance checklist (quick run)
 

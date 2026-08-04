@@ -16,6 +16,7 @@ REFERENCE_METADATA_FIELDS = (
     "page",
     "speaker",
     "attributed_person",
+    "stage_cue",
     "line_start",
     "line_end",
     "passage_start",

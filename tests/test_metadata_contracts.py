@@ -88,3 +88,30 @@ def test_document_metadata_tiers_propagate_to_prose_chunks(tmp_path: Path) -> No
     assert tiers["reference"]["source"] == source
     assert tiers["context"]["genre"] == "tragedy"
     assert tiers["interpretive"]["themes"] == ["jealousy", "service"]
+
+
+def test_tier1_helpers_infer_reference_metadata_from_filename_and_title_block(tmp_path: Path) -> None:
+    config = RagConfig.default(lifecycle_state_path=str(tmp_path / "lifecycle-state.json"))
+    source = str(tmp_path / "hamlet_PDF_FolgerShakespeare.txt")
+    docs = [
+        {
+            "source": source,
+            "text": "Hamlet\nWilliam Shakespeare\nFolger Shakespeare Library\nAct 1, Scene 1.",
+            "doc_type": "unknown",
+            "extraction_method": "text_file_parser",
+            "extraction_ts": "2026-01-01T00:00:00Z",
+        }
+    ]
+
+    chunks = build_chunk_index(docs, config)
+
+    assert chunks
+    metadata = chunks[0]["document_metadata"]
+    assert isinstance(metadata, dict)
+    tiers = metadata.get("metadata_tiers")
+    assert isinstance(tiers, dict)
+    assert tiers["reference"]["title"] == "Hamlet"
+    assert tiers["reference"]["author"] == "William Shakespeare"
+    assert tiers["reference"]["edition"] == "Folger Shakespeare Library"
+    assert tiers["reference"]["source"] == source
+    assert tiers["reference"]["document_type"] == "play_tragedy"

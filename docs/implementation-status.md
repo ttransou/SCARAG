@@ -17,6 +17,7 @@ This document tracks implementation progress for the framework surfaces describe
 - Chunking overlap policy is formalized by chunk type with normalized defaults for prose and tabular windows.
 - Prose chunking applies configurable lexical cohesion segmentation into source units before chunk windowing.
 - Chunk metadata preserves source-unit boundaries and now separates compact document-level metadata (`document_metadata`) from chunk-level metadata to reduce payload duplication.
+- Shakespeare branch baseline now infers Tier 1 reference metadata (`title`, `author`, `source`, `edition`, `document_type`) from filename/source cues, opening title-block text, and taxonomy resolution before chunk propagation.
 - Doc type fallback behavior now treats placeholder values (for example `unknown`, `tbd`, `n/a`) as unset so taxonomy inference still runs.
 - Tabular-vs-prose classification heuristics are tightened to reduce false tabular classification for delimiter-heavy prose.
 - Non-persistent ingestion mode is available for exploratory/test runs via `ingestion_persist_lifecycle_state=False`.

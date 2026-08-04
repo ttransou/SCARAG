@@ -72,7 +72,7 @@ Shakespeare branch metadata tier payload (`document_metadata.metadata_tiers`):
 	- author
 	- document_type
 	- act, scene, stanza, section, page
-	- speaker or attributed_person
+	- speaker, attributed_person, stage_cue
 	- line_start, line_end, passage_start, passage_end
 	- source
 	- edition
@@ -100,8 +100,10 @@ Placement guidance for Shakespeare Tier 1 fields:
 - Passage-scoped reference fields should remain chunk-local rather than document-global.
 - Use `source_unit_kind` and `source_unit_local_id` to identify the local dramatic or poetic unit that a chunk came from.
 - Use `source_unit_boundary` for location-bearing Tier 1 fields such as `act`, `scene`, `stanza`, `section`, `page`, `line_start`, `line_end`, `passage_start`, and `passage_end` when they can be derived from the source structure.
-- Attach `speaker` and `attributed_person` to the same chunk-local passage metadata used for structural boundaries so they can be reviewed against the exact cited passage.
+- Attach `speaker`, `attributed_person`, and `stage_cue` to the same chunk-local passage metadata used for structural boundaries so they can be reviewed against the exact cited passage.
+- When a stage cue appears inside or immediately after a character's speech, attach it to that local speaking unit rather than promoting it to document-level structure.
 - Do not store passage-scoped values only at document level, because they become ambiguous once chunks from different scenes, speeches, or stanzas are retrieved together.
+- Repeated dramatic scaffolding such as speaker labels and stage directions should not be treated as generic boilerplate when computing repetition penalties.
 
 Verification expectation for inferred Tier 1 fields:
 

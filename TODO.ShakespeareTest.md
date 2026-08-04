@@ -28,7 +28,7 @@ This file tracks branch-specific work for Shakespeare-only ingestion testing.
 
 ## Metadata Tier TODO
 
-- [ ] Step 1: define the Tier 1 fields that must be derived directly from raw works in `data/` with no manual pre-annotation.
+- [x] Step 1: define the Tier 1 fields that must be derived directly from raw works in `data/` with no manual pre-annotation.
 	- `title`
 	- `author`
 	- `document_type`
@@ -41,23 +41,28 @@ This file tracks branch-specific work for Shakespeare-only ingestion testing.
 	- `page`
 	- `speaker`
 	- `attributed_person`
+	- `stage_cue`
 	- `line_start`
 	- `line_end`
 	- `passage_start`
 	- `passage_end`
-- [ ] Step 2: implement and validate document-level inference for Tier 1 core fields: `title`, `author`, `document_type`, `source`, and `edition`.
-	- helper: filename and source parser
-	- helper: title-block and front-matter parser
-	- helper: work-identity normalizer
-	- helper: taxonomy resolver
+- [x] Step 2: implement and validate document-level inference for Tier 1 core fields: `title`, `author`, `document_type`, `source`, and `edition`.
+	- [x] helper: filename and source parser
+	- [x] helper: title-block and front-matter parser
+	- [x] helper: work-identity normalizer
+	- [x] helper: taxonomy resolver
 - [ ] Step 3: implement and validate passage-level inference for Tier 1 location fields from source text structure: `act`, `scene`, `stanza`, `section`, `page`, `speaker`, `attributed_person`, and line or passage boundaries.
 	- helper: dramatic structure parser
 	- helper: poetry structure parser
 	- helper: speaker attribution parser
+	- helper: stage cue parser linked to the nearest speaking unit when cues trail or interrupt dialogue
 	- helper: passage boundary helper
 	- helper: page marker helper
+	- design choice: decide whether passage-local dramatic metadata belongs in an expanded `source_unit_boundary` payload or a dedicated dramatic-structure metadata block
 - [ ] Step 4: add ingestion diagnostics that show where each Tier 1 field was stored, whether it was exact, normalized, inferred, or missing, and which values require human review.
 	- helper: verification-state emitter
+- [x] Step 4a: ensure repeated speaker labels and stage directions are marked as dramatic structure rather than generic boilerplate for retrieval scoring.
+- [ ] Step 4b: emit per-field verification states for Tier 1 reference metadata so review can distinguish `exact`, `normalized`, `inferred`, and `missing`.
 - [ ] Step 5: define the manual curation format for Tier 2 Context metadata so bibliographic and historical fields can be attached after raw ingestion.
 - [ ] Step 6: define the optional manual curation format for Tier 3 Interpretive metadata so scholarly enrichment remains attributable and reviewable.
 - [ ] Step 7: keep Tier 2 and Tier 3 overlays branch-local and curator-managed; do not require them for baseline Shakespeare ingestion.
