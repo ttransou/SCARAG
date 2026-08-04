@@ -51,6 +51,10 @@ class EvidenceMetadata:
     source_unit_kind: str | None = None
     source_unit_boundary: dict[str, Any] | None = None
     document_metadata: dict[str, Any] | None = None
+    source_work_key: str | None = None
+    source_work_title: str | None = None
+    source_work_tokens: list[str] | None = None
+    source_format: str | None = None
     boilerplate_signal: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -76,6 +80,10 @@ class EvidenceMetadata:
             "source_unit_kind": self.source_unit_kind,
             "source_unit_boundary": self.source_unit_boundary,
             "document_metadata": self.document_metadata,
+            "source_work_key": self.source_work_key,
+            "source_work_title": self.source_work_title,
+            "source_work_tokens": self.source_work_tokens,
+            "source_format": self.source_format,
             "boilerplate_signal": self.boilerplate_signal,
         }
 

@@ -302,7 +302,48 @@ def test_retrieval_preserves_chunk_metadata_fields(tmp_path: Path) -> None:
     assert isinstance(first.get("document_metadata"), dict)
     assert first["document_metadata"]["table_count"] >= 1
     assert first["document_metadata"]["image_marker_count"] >= 1
+    assert first.get("source_work_key") == "table"
+    assert first.get("source_work_title") == "Table"
+    assert first.get("source_work_tokens") == ["table"]
+    assert first.get("source_format") == "docx"
     assert isinstance(first.get("boilerplate_signal"), dict)
+
+
+def test_source_work_boost_prefers_named_work_source(tmp_path: Path) -> None:
+    config = RagConfig(
+        lifecycle_state_path=str(tmp_path / "lifecycle-state.json"),
+        retrieval_backend="lexical",
+        min_retrieval_score=0.0,
+        top_k=3,
+        chunk_size=120,
+        overlap=0,
+        min_chunk_words=1,
+    )
+    docs = [
+        {
+            "source": str(tmp_path / "hamlet_TXT_FolgerShakespeare.txt"),
+            "text": "The prince reflects on fate and mortal consequence in Denmark.",
+            "doc_type": "play_tragedy",
+        },
+        {
+            "source": str(tmp_path / "othello_TXT_FolgerShakespeare.txt"),
+            "text": "A general confronts jealousy and betrayal in Venice.",
+            "doc_type": "play_tragedy",
+        },
+    ]
+    chunks = build_chunk_index(docs, config)
+
+    response = retrieve_via_interface(
+        "In Othello what evidence speaks to jealousy",
+        chunks,
+        config,
+        {"terms": {}, "intent_groups": {}},
+    )
+
+    assert response.ranked_chunks
+    assert response.ranked_chunks[0]["source"].endswith("othello_TXT_FolgerShakespeare.txt")
+    components = response.ranked_chunks[0].get("score_components", {})
+    assert float(components.get("source_work_boost", 1.0)) > 1.0
 
 
 def test_boilerplate_penalty_demotes_repeated_chunks(tmp_path: Path) -> None:

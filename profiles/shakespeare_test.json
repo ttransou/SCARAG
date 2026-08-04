@@ -10,7 +10,14 @@
     "Internet Shakespeare Editions"
   ],
   "retrieval": {
-    "preferred_doc_types": ["play", "sonnet", "edition", "primary_source"],
+    "preferred_doc_types": [
+      "play_tragedy",
+      "play_comedy",
+      "play_history",
+      "play",
+      "sonnet",
+      "primary_source"
+    ],
     "lower_priority_doc_types": ["table"],
     "boost_terms": [
       "folio",

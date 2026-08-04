@@ -41,6 +41,60 @@ _DOC_TYPE_PLACEHOLDERS = {
     "-",
 }
 
+_SOURCE_WORK_MARKER_TOKENS = {
+    "pdf",
+    "txt",
+    "doc",
+    "docx",
+    "xml",
+    "html",
+    "mhtml",
+    "csv",
+    "xls",
+    "xlsx",
+    "ppt",
+    "pptx",
+    "folger",
+    "folgershakespeare",
+    "ln",
+}
+
+_QUERY_SOURCE_STOPWORDS = {
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "can",
+    "does",
+    "evidence",
+    "for",
+    "from",
+    "how",
+    "in",
+    "is",
+    "it",
+    "of",
+    "on",
+    "or",
+    "that",
+    "the",
+    "there",
+    "this",
+    "to",
+    "was",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "with",
+}
+
 
 def _tokenize(text: str) -> list[str]:
     return [match.group(0).lower() for match in _TOKEN_RE.finditer(text)]
@@ -58,6 +112,27 @@ def _boilerplate_signal_key(text: str) -> str:
 def _source_unit_id(source: str) -> str:
     normalized = str(Path(source)).replace("\\", "/").lower()
     return f"su_{hashlib.sha1(normalized.encode('utf-8', errors='ignore')).hexdigest()[:16]}"
+
+
+def _source_work_metadata(source: str) -> tuple[str, str, list[str], str]:
+    path = Path(source)
+    source_format = path.suffix.lower().lstrip(".")
+    raw_tokens = [token for token in re.split(r"[^a-z0-9]+", path.stem.lower()) if token]
+
+    work_tokens: list[str] = []
+    for token in raw_tokens:
+        if token in _SOURCE_WORK_MARKER_TOKENS:
+            break
+        work_tokens.append(token)
+
+    if not work_tokens:
+        work_tokens = raw_tokens[:]
+    if not work_tokens:
+        work_tokens = ["unknown"]
+
+    work_key = "_".join(work_tokens)
+    work_title = " ".join(token.capitalize() for token in work_tokens)
+    return work_key, work_title, work_tokens, source_format
 
 
 def _parse_iso_ts(value: str | None) -> tuple[datetime | None, bool]:
@@ -836,6 +911,7 @@ def build_chunk_index(
         seen_fingerprints.add(fingerprint)
 
         source_unit_id = _source_unit_id(source)
+        source_work_key, source_work_title, source_work_tokens, source_format = _source_work_metadata(source)
         if persist_lifecycle_state:
             lifecycle_record, lifecycle_action = store.upsert_with_policy(
                 source_unit_id=source_unit_id,
@@ -980,6 +1056,10 @@ def build_chunk_index(
                 source_unit_kind=chunk_record.get("source_unit_kind"),
                 source_unit_boundary=chunk_record.get("source_unit_boundary"),
                 document_metadata=document_metadata,
+                source_work_key=source_work_key,
+                source_work_title=source_work_title,
+                source_work_tokens=source_work_tokens,
+                source_format=source_format,
             )
             chunks.append(metadata.to_dict())
 
@@ -1148,7 +1228,8 @@ def _score_lexical(
             tabular_intent=tabular_intent,
             config=config,
         )
-        final_score = overlap_score * metadata_weight * boilerplate_penalty * table_boost
+        source_work_boost = _source_work_boost_factor(query_terms, chunk)
+        final_score = overlap_score * metadata_weight * boilerplate_penalty * table_boost * source_work_boost
 
         if final_score < config.min_retrieval_score:
             continue
@@ -1160,6 +1241,7 @@ def _score_lexical(
             metadata_weight=metadata_weight,
             boilerplate_penalty=boilerplate_penalty,
             table_boost=table_boost,
+            source_work_boost=source_work_boost,
             final_score=final_score,
         )
         weighted.append(with_score)
@@ -1277,12 +1359,47 @@ def _table_boost_factor(
     return boost
 
 
+def _source_work_boost_factor(query_terms: set[str], chunk: dict[str, Any]) -> float:
+    if not query_terms:
+        return 1.0
+
+    focus_terms = {
+        term
+        for term in query_terms
+        if len(term) > 2 and term not in _QUERY_SOURCE_STOPWORDS
+    }
+    if not focus_terms:
+        return 1.0
+
+    raw_chunk_tokens = chunk.get("source_work_tokens")
+    if isinstance(raw_chunk_tokens, list):
+        chunk_work_tokens = {str(token).strip().lower() for token in raw_chunk_tokens if str(token).strip()}
+    else:
+        chunk_work_tokens = {
+            token.strip().lower()
+            for token in str(chunk.get("source_work_key", "")).split("_")
+            if token.strip()
+        }
+    if not chunk_work_tokens:
+        return 1.0
+
+    overlap = focus_terms & chunk_work_tokens
+    if not overlap:
+        return 1.0
+
+    work_match_ratio = len(overlap) / len(chunk_work_tokens)
+    query_match_ratio = len(overlap) / len(focus_terms)
+    boost_strength = (0.4 * work_match_ratio) + (0.2 * query_match_ratio)
+    return 1.0 + min(0.5, boost_strength)
+
+
 def _rank_score_components(
     *,
     base_similarity: float,
     metadata_weight: float,
     boilerplate_penalty: float,
     table_boost: float,
+    source_work_boost: float,
     final_score: float,
 ) -> dict[str, float]:
     return {
@@ -1290,6 +1407,7 @@ def _rank_score_components(
         "metadata_weight": round(metadata_weight, 6),
         "boilerplate_penalty": round(boilerplate_penalty, 6),
         "table_boost": round(table_boost, 6),
+        "source_work_boost": round(source_work_boost, 6),
         "final_score": round(final_score, 6),
     }
 
@@ -1381,7 +1499,8 @@ def _score_tfidf(
             tabular_intent=tabular_intent,
             config=config,
         )
-        final_score = similarity * metadata_weight * boilerplate_penalty * table_boost
+        source_work_boost = _source_work_boost_factor(query_terms, chunk)
+        final_score = similarity * metadata_weight * boilerplate_penalty * table_boost * source_work_boost
 
         if final_score < config.min_retrieval_score:
             continue
@@ -1393,6 +1512,7 @@ def _score_tfidf(
             metadata_weight=metadata_weight,
             boilerplate_penalty=boilerplate_penalty,
             table_boost=table_boost,
+            source_work_boost=source_work_boost,
             final_score=final_score,
         )
         weighted.append(with_score)
@@ -1451,7 +1571,8 @@ def _score_vector(
             tabular_intent=tabular_intent,
             config=config,
         )
-        final_score = similarity * metadata_weight * boilerplate_penalty * table_boost
+        source_work_boost = _source_work_boost_factor(query_terms, chunk)
+        final_score = similarity * metadata_weight * boilerplate_penalty * table_boost * source_work_boost
 
         if final_score < config.min_retrieval_score:
             continue
@@ -1463,6 +1584,7 @@ def _score_vector(
             metadata_weight=metadata_weight,
             boilerplate_penalty=boilerplate_penalty,
             table_boost=table_boost,
+            source_work_boost=source_work_boost,
             final_score=final_score,
         )
         weighted.append(with_score)

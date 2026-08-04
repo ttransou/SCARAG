@@ -108,6 +108,22 @@ def _legacy_doc_quality_score(text: str) -> float:
     return alpha_ratio + printable_ratio - (0.05 * marker_penalty)
 
 
+def _legacy_doc_text_is_noisy(text: str) -> bool:
+    normalized = str(text).strip()
+    if not normalized:
+        return True
+
+    lowered = normalized.lower()
+    if lowered.startswith("0 bjbj") or lowered.startswith("bjbj"):
+        return True
+
+    noisy_markers = ("bjbj", " BT ", " DT ", " HYPERLINK")
+    marker_hits = sum(1 for marker in noisy_markers if marker in normalized)
+    alpha_chars = sum(1 for char in normalized if char.isalpha())
+    alpha_ratio = alpha_chars / max(1, len(normalized))
+    return marker_hits >= 1 or alpha_ratio < 0.6
+
+
 def _parse_legacy_doc_with_helper(path: Path) -> tuple[str, str] | None:
     helper_specs = (
         ("antiword", ["antiword", str(path)]),
@@ -579,7 +595,10 @@ def _load_documents_internal(data_path: str | Path) -> tuple[list[dict[str, Any]
                 helper_payload = _parse_legacy_doc_with_helper(path)
                 if helper_payload is not None:
                     helper_text, helper_name = helper_payload
-                    if _legacy_doc_quality_score(helper_text) >= _legacy_doc_quality_score(text) + 0.05:
+                    if _legacy_doc_text_is_noisy(text):
+                        text = helper_text
+                        extraction_method = f"doc_legacy_{helper_name}_parser"
+                    elif _legacy_doc_quality_score(helper_text) >= _legacy_doc_quality_score(text) + 0.05:
                         text = helper_text
                         extraction_method = f"doc_legacy_{helper_name}_parser"
 

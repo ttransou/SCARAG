@@ -1,28 +1,73 @@
 {
   "taxonomy_id": "scarag_doc_type_shakespeare_test",
   "version": "1.0.0",
-  "default_doc_type": "note",
+  "default_doc_type": "primary_source",
   "extension_defaults": {
     ".txt": "primary_source",
-    ".md": "note",
-    ".pdf": "edition",
-    ".docx": "edition",
+    ".md": "primary_source",
+    ".pdf": "primary_source",
+    ".doc": "primary_source",
+    ".docx": "primary_source",
     ".html": "commentary",
     ".xml": "primary_source",
     ".csv": "table"
   },
   "source_overrides": [
     {
-      "contains": ["hamlet", "macbeth", "othello", "king_lear", "romeo_and_juliet", "the_tempest", "twelfth_night"],
-      "doc_type": "play"
-    },
-    {
-      "contains": ["sonnet", "sonnets"],
+      "contains": ["sonnet", "sonnets", "son.xml"],
       "doc_type": "sonnet"
     },
     {
+      "contains": [
+        "hamlet",
+        "macbeth",
+        "othello",
+        "king_lear",
+        "romeo-and-juliet",
+        "romeo_and_juliet",
+        "titus-andronicus",
+        "julius_caesar",
+        "antony_and_cleopatra",
+        "coriolanus"
+      ],
+      "doc_type": "play_tragedy"
+    },
+    {
+      "contains": [
+        "the-taming-of-the-shrew",
+        "twelfth_night",
+        "much-ado",
+        "ado",
+        "as_you_like_it",
+        "a_midsummer_nights_dream",
+        "the_merry_wives_of_windsor"
+      ],
+      "doc_type": "play_comedy"
+    },
+    {
+      "contains": [
+        "henry_iv",
+        "henry_v",
+        "henry_vi",
+        "richard_ii",
+        "richard_iii",
+        "king_john",
+        "henry_viii"
+      ],
+      "doc_type": "play_history"
+    },
+    {
+      "contains": [
+        "hamlet",
+        "the_tempest",
+        "measure_for_measure",
+        "merchant_of_venice"
+      ],
+      "doc_type": "play"
+    },
+    {
       "contains": ["folio", "quarto"],
-      "doc_type": "edition"
+      "doc_type": "primary_source"
     },
     {
       "contains": ["performance", "promptbook", "staging_notes"],
@@ -32,6 +77,15 @@
   "doc_types": {
     "play": {
       "patterns": ["play", "act", "scene", "stage direction", "dramatis personae"]
+    },
+    "play_tragedy": {
+      "patterns": ["tragedy", "dies", "fatal", "blood", "revenge", "murder"]
+    },
+    "play_comedy": {
+      "patterns": ["comedy", "marriage", "fool", "witty", "mistaken identity"]
+    },
+    "play_history": {
+      "patterns": ["history", "king", "crown", "rebellion", "battle", "chronicle"]
     },
     "sonnet": {
       "patterns": ["sonnet", "quatrain", "couplet", "iambic pentameter"]

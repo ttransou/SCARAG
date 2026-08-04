@@ -210,6 +210,31 @@ def test_loader_uses_xls_fallback_parser_when_openpyxl_rejects_file(monkeypatch)
     assert documents[0]["table_metadata"][0]["sheet_name"] == "Sheet1"
 
 
+def test_loader_prefers_doc_helper_when_fallback_text_is_noisy(monkeypatch) -> None:
+    with TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+        doc_path = temp_path / "legacy.doc"
+        doc_path.write_bytes(b"placeholder")
+
+        monkeypatch.setattr(
+            loader_module,
+            "_parse_legacy_doc",
+            lambda _: "0 bjbj noisy binary-like content HYPERLINK marker",
+        )
+        monkeypatch.setattr(
+            loader_module,
+            "_parse_legacy_doc_with_helper",
+            lambda _: ("Romeo and Juliet\nBy William Shakespeare", "antiword"),
+        )
+
+        documents = load_documents(temp_path)
+
+    assert len(documents) == 1
+    assert documents[0]["source"].endswith("legacy.doc")
+    assert documents[0]["extraction_method"] == "doc_legacy_antiword_parser"
+    assert "Romeo and Juliet" in documents[0]["text"]
+
+
 def test_loader_extracts_docx_table_metadata() -> None:
     with TemporaryDirectory() as temp_dir:
         temp_path = Path(temp_dir)

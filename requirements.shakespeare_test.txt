@@ -1,0 +1,16 @@
+# ShakespeareTest branch setup requirements
+#
+# Install Python dependencies first:
+#   /home/codespace/.python/current/bin/python -m pip install -r requirements.shakespeare_test.txt
+#
+# This includes the framework baseline Python dependencies.
+-r requirements.txt
+
+# System-level helpers for legacy .doc extraction (not pip packages):
+#   sudo apt-get update
+#   sudo apt-get install -y antiword catdoc
+#
+# Why these are listed here:
+# - Shakespeare test corpora include legacy .doc fixtures.
+# - antiword/catdoc materially improve extraction fidelity over binary fallback parsing.
+# - cleaner extraction improves doc_type candidate quality and ingestion diagnostics.
