@@ -5,8 +5,7 @@ from typing import Any
 from scarag.confidence import resolve_confidence
 from scarag.config import RagConfig
 from scarag.generation.answerer import generate_answer_result
-from scarag.ingestion.loader import load_documents
-from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus, retrieve_chunks
+from scarag.pipeline import ingest_documents_with_diagnostics, is_tabular_intent, load_thesaurus, retrieve_chunks
 from scarag.provenance import (
     filter_complete_citations,
     filter_complete_source_chunks,
@@ -41,6 +40,7 @@ app = FastAPI(title="SCARAG", version="0.1.0")
 _CONFIG = RagConfig()
 _THESAURUS = load_thesaurus(_CONFIG)
 _CHUNK_CACHE: list[dict[str, Any]] | None = None
+_INGESTION_DIAGNOSTICS_CACHE: dict[str, Any] | None = None
 _ALLOWED_CONFIDENCE_LABELS = {"high", "low", "abstain"}
 _CONTRACT_VERSION = "1.0"
 
@@ -72,11 +72,24 @@ def _normalize_confidence_label(label: Any) -> str:
 
 
 def _get_chunks() -> list[dict[str, Any]]:
-    global _CHUNK_CACHE
+    global _CHUNK_CACHE, _INGESTION_DIAGNOSTICS_CACHE
     if _CHUNK_CACHE is None:
-        documents = load_documents(_CONFIG.data_path)
-        _CHUNK_CACHE = build_chunk_index(documents, _CONFIG)
+        ingestion = ingest_documents_with_diagnostics(_CONFIG.data_path, _CONFIG)
+        _CHUNK_CACHE = list(ingestion.get("chunks", []))
+        diagnostics = ingestion.get("diagnostics", {})
+        _INGESTION_DIAGNOSTICS_CACHE = diagnostics if isinstance(diagnostics, dict) else {}
     return _CHUNK_CACHE
+
+
+def _get_ingestion_diagnostics() -> dict[str, Any]:
+    _get_chunks()
+    if isinstance(_INGESTION_DIAGNOSTICS_CACHE, dict):
+        return _INGESTION_DIAGNOSTICS_CACHE
+    return {
+        "contract_version": _CONTRACT_VERSION,
+        "files": [],
+        "summary": {},
+    }
 
 
 def _to_citation(chunk: dict[str, Any], rank: int) -> dict[str, Any]:
@@ -107,6 +120,11 @@ def health() -> dict[str, Any]:
         "contract_version": _CONTRACT_VERSION,
         "chunks_indexed": len(chunks),
     }
+
+
+@app.get("/api/ingestion/diagnostics")
+def ingestion_diagnostics() -> dict[str, Any]:
+    return _get_ingestion_diagnostics()
 
 
 @app.post("/api/chat")

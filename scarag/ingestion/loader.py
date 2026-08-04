@@ -72,6 +72,25 @@ def _parse_html(path: Path) -> str:
     return "\n\n".join(part.strip() for part in re.split(r"\n{2,}", soup.get_text("\n", strip=True)) if part.strip())
 
 
+def _parse_xml(path: Path) -> str:
+    raw = _read_text_file(path)
+    soup = BeautifulSoup(raw, "xml")
+    return "\n\n".join(part.strip() for part in re.split(r"\n{2,}", soup.get_text("\n", strip=True)) if part.strip())
+
+
+def _parse_legacy_doc(path: Path) -> str:
+    raw = path.read_bytes()
+    decoded = raw.decode("latin-1", errors="ignore").replace("\x00", " ")
+    candidates = re.findall(r"[A-Za-z0-9][A-Za-z0-9\s,.;:()/_\-]{3,}", decoded)
+    cleaned_lines = [re.sub(r"\s+", " ", part).strip() for part in candidates]
+    cleaned_lines = [part for part in cleaned_lines if part]
+    if cleaned_lines:
+        return "\n".join(cleaned_lines)
+
+    fallback = re.sub(r"[^\x20-\x7E\n\t]", " ", decoded)
+    return re.sub(r"\s+", " ", fallback).strip()
+
+
 def _parse_docx(path: Path) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
     document = DocxDocument(path)
 
@@ -398,37 +417,119 @@ def _parse_mhtml(path: Path) -> str:
     return _read_text_file(path)
 
 
-def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
-    """Load a simple list of document-like records from a folder.
+def _empty_ingestion_diagnostics() -> dict[str, Any]:
+    return {
+        "files": [],
+        "summary": {
+            "total_files": 0,
+            "loaded_files": 0,
+            "skipped_files": 0,
+            "unsupported_files": 0,
+            "internal_skipped_files": 0,
+            "parser_counts": {},
+            "skip_reason_counts": {},
+        },
+    }
 
-    The repository README describes a richer ingestion pipeline, but this
-    reference implementation keeps the interface lightweight until real parsers
-    are added.
-    """
+
+def _record_ingestion_file(
+    diagnostics: dict[str, Any],
+    *,
+    source: str,
+    parser: str,
+    status: str,
+    skip_reason: str | None = None,
+) -> None:
+    files = diagnostics.get("files")
+    summary = diagnostics.get("summary")
+    if not isinstance(files, list) or not isinstance(summary, dict):
+        return
+
+    record = {
+        "source": source,
+        "parser": parser,
+        "status": status,
+        "skip_reason": skip_reason,
+    }
+    files.append(record)
+
+    summary["total_files"] = int(summary.get("total_files", 0)) + 1
+    parser_counts = summary.setdefault("parser_counts", {})
+    if isinstance(parser_counts, dict):
+        parser_counts[parser] = int(parser_counts.get(parser, 0)) + 1
+
+    if status == "loaded":
+        summary["loaded_files"] = int(summary.get("loaded_files", 0)) + 1
+        return
+
+    summary["skipped_files"] = int(summary.get("skipped_files", 0)) + 1
+    if skip_reason == "unsupported_format":
+        summary["unsupported_files"] = int(summary.get("unsupported_files", 0)) + 1
+    if skip_reason == "internal_artifact":
+        summary["internal_skipped_files"] = int(summary.get("internal_skipped_files", 0)) + 1
+
+    if skip_reason:
+        skip_reason_counts = summary.setdefault("skip_reason_counts", {})
+        if isinstance(skip_reason_counts, dict):
+            skip_reason_counts[skip_reason] = int(skip_reason_counts.get(skip_reason, 0)) + 1
+
+
+def _is_internal_ingestion_artifact(path: Path) -> bool:
+    name = path.name
+    return name in {
+        ".scarag_lifecycle_state.json",
+        ".scarag_lifecycle_audit.jsonl",
+    }
+
+
+def _load_documents_internal(data_path: str | Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     root = Path(data_path)
+    diagnostics = _empty_ingestion_diagnostics()
     if not root.exists():
-        return []
+        return [], diagnostics
 
     documents: list[dict[str, Any]] = []
+    parser_by_suffix: dict[str, tuple[Any, str]] = {
+        ".txt": (_read_text_file, "text_file_parser"),
+        ".md": (_read_text_file, "text_file_parser"),
+        ".json": (_parse_json, "json_parser"),
+        ".csv": (_parse_csv, "csv_parser"),
+        ".mhtml": (_parse_mhtml, "mhtml_parser"),
+        ".mht": (_parse_mhtml, "mhtml_parser"),
+        ".html": (_parse_html, "html_parser"),
+        ".htm": (_parse_html, "html_parser"),
+        ".xml": (_parse_xml, "xml_parser"),
+        ".doc": (_parse_legacy_doc, "doc_legacy_parser"),
+    }
+
     for path in sorted(root.rglob("*")):
         if not path.is_file():
             continue
 
+        if _is_internal_ingestion_artifact(path):
+            _record_ingestion_file(
+                diagnostics,
+                source=str(path),
+                parser="internal_artifact",
+                status="skipped",
+                skip_reason="internal_artifact",
+            )
+            continue
+
         suffix = path.suffix.lower()
-        if suffix in {".txt", ".md", ".json", ".csv", ".mhtml", ".mht"}:
-            parser = {
-                ".json": _parse_json,
-                ".csv": _parse_csv,
-                ".mhtml": _parse_mhtml,
-                ".mht": _parse_mhtml,
-            }.get(suffix)
-            text = parser(path) if parser else _read_text_file(path)
-            extraction_method = {
-                ".json": "json_parser",
-                ".csv": "csv_parser",
-                ".mhtml": "mhtml_parser",
-                ".mht": "mhtml_parser",
-            }.get(suffix, "text_file_parser")
+        if suffix in parser_by_suffix:
+            parser, extraction_method = parser_by_suffix[suffix]
+            try:
+                text = parser(path)
+            except Exception:
+                _record_ingestion_file(
+                    diagnostics,
+                    source=str(path),
+                    parser=extraction_method,
+                    status="skipped",
+                    skip_reason="parse_error",
+                )
+                continue
             documents.append(
                 {
                     "source": str(path),
@@ -438,17 +539,11 @@ def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
                     "extraction_ts": _utc_now_iso(),
                 }
             )
-            continue
-
-        if suffix == ".html" or suffix == ".htm":
-            documents.append(
-                {
-                    "source": str(path),
-                    "text": _parse_html(path),
-                    "doc_type": "unknown",
-                    "extraction_method": "html_parser",
-                    "extraction_ts": _utc_now_iso(),
-                }
+            _record_ingestion_file(
+                diagnostics,
+                source=str(path),
+                parser=extraction_method,
+                status="loaded",
             )
             continue
 
@@ -465,6 +560,12 @@ def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
                     "image_markers": image_markers,
                 }
             )
+            _record_ingestion_file(
+                diagnostics,
+                source=str(path),
+                parser="docx_parser",
+                status="loaded",
+            )
             continue
 
         if suffix == ".pdf":
@@ -479,6 +580,12 @@ def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
                     "table_metadata": table_metadata,
                     "image_markers": image_markers,
                 }
+            )
+            _record_ingestion_file(
+                diagnostics,
+                source=str(path),
+                parser="pdf_parser",
+                status="loaded",
             )
             continue
 
@@ -495,21 +602,57 @@ def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
                     "image_markers": image_markers,
                 }
             )
+            _record_ingestion_file(
+                diagnostics,
+                source=str(path),
+                parser="pptx_parser",
+                status="loaded",
+            )
             continue
 
         if suffix == ".xlsx" or suffix == ".xls":
             text, table_metadata, image_markers = _parse_result(_parse_spreadsheet(path))
+            extraction_method = "xls_parser" if suffix == ".xls" else "xlsx_parser"
             documents.append(
                 {
                     "source": str(path),
                     "text": text,
                     "doc_type": "unknown",
-                    "extraction_method": "xls_parser" if suffix == ".xls" else "xlsx_parser",
+                    "extraction_method": extraction_method,
                     "extraction_ts": _utc_now_iso(),
                     "table_metadata": table_metadata,
                     "image_markers": image_markers,
                 }
             )
+            _record_ingestion_file(
+                diagnostics,
+                source=str(path),
+                parser=extraction_method,
+                status="loaded",
+            )
             continue
 
+        _record_ingestion_file(
+            diagnostics,
+            source=str(path),
+            parser="unsupported_parser",
+            status="skipped",
+            skip_reason="unsupported_format",
+        )
+
+    return documents, diagnostics
+
+
+def load_documents_with_diagnostics(data_path: str | Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    return _load_documents_internal(data_path)
+
+
+def load_documents(data_path: str | Path) -> list[dict[str, Any]]:
+    """Load a simple list of document-like records from a folder.
+
+    The repository README describes a richer ingestion pipeline, but this
+    reference implementation keeps the interface lightweight until real parsers
+    are added.
+    """
+    documents, _diagnostics = _load_documents_internal(data_path)
     return documents

@@ -51,6 +51,12 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [x] Implemented (baseline): Add image marker propagation where non-text objects are encountered.
 - [x] Implemented: .xls path hardened with xlrd fallback when openpyxl rejects legacy files.
 - [x] Implemented: Emit extraction_method metadata for every parser path.
+- [x] Implemented: Add parser coverage for XML and legacy DOC inputs.
+- [x] Implemented: Add explicit unsupported-format diagnostics during ingestion.
+- [x] Implemented: Add guardrail to skip internal lifecycle artifacts during ingestion, with explicit diagnostics.
+- [x] Implemented: Add non-persistent ingestion mode for exploratory/test runs (`ingestion_persist_lifecycle_state=False`).
+- [x] Implemented: Add ingestion diagnostics output contract (per-file parser, skip reason, chunk counts, inferred type summary).
+- [x] Implemented: Add mixed-format ingestion regression tests for parser coverage, type inference, and chunk-shape sanity.
 
 ### 3. Chunking
 - [X] Implemented: Prose chunking with chunk_size, overlap, min_chunk_words.
@@ -60,6 +66,8 @@ These items are intentionally tracked outside Immediate Priorities and should be
 - [x] Implemented (baseline): Lexical cohesion splitting is implemented via configurable cohesion_threshold source-unit segmentation.
 - [x] Implemented (baseline): Preserve source-unit boundaries so chunks can trace to precise source units.
 - [x] Implemented (baseline): Ensure full chunk metadata propagation from ingestion through retrieval output.
+- [x] Implemented: Reduce chunk payload bloat by separating document-level and chunk-level metadata propagation.
+- [x] Implemented: Tighten prose vs tabular heuristics to reduce false tabular classification.
 
 ### 4. Retrieval
 - [X] Implemented: Query expansion from config/synonyms.json.

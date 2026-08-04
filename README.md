@@ -145,9 +145,15 @@ For explicit deployment ownership boundaries, see [docs/deployment-boundaries.md
 - Generation modes available: extractive (default), mock, and live placeholder.
 - Live mode is an adapter hook and currently returns a clear provider-not-configured message.
 - Generation returns structured grounding diagnostics, including abstention reason codes and cited chunk ids, behind the API envelope.
+- Ingestion parser baseline includes txt/md/json/csv/html/mhtml/pdf/docx/pptx/xlsx/xls plus XML (`.xml`) and legacy DOC (`.doc`) coverage.
+- Ingestion now emits explicit diagnostics for parser path and skip reasons, including unsupported formats and internal framework artifacts.
+- Internal lifecycle artifacts (`.scarag_lifecycle_state.json`, `.scarag_lifecycle_audit.jsonl`) are excluded from ingestion to avoid self-indexing.
+- Chunk metadata now separates chunk-level fields from compact document-level metadata (`document_metadata`) to reduce payload bloat.
+- Non-persistent ingestion mode is available for exploratory runs (`ingestion_persist_lifecycle_state=False`).
 - The React frontend is a reference implementation and may be replaced by implementers.
 - Feedback capture is scaffolded in the UI, but persistence wiring is not implemented.
 - API responses include a `contract_version` field, and migration notes for response-field evolution are tracked in [docs/api-contract-migrations.md](docs/api-contract-migrations.md).
+- API includes `GET /api/ingestion/diagnostics` for ingestion-stage inspection.
 
 ## Environment Assumptions
 - Python: a Python 3 environment is available, and local workflow assumes a project virtual environment (for example `./.venv`).

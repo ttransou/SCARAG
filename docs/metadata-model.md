@@ -56,8 +56,17 @@ Optional chunk metadata fields:
 - source_unit_local_id
 - source_unit_kind
 - source_unit_boundary
-- table_metadata (propagated from ingestion when available)
-- image_markers (propagated from ingestion when available)
+- document_metadata (compact document-level summary propagated to each chunk)
+
+Current document_metadata baseline:
+- table_count
+- image_marker_count
+- table_ids
+- image_marker_ids
+
+Optional document_metadata detail expansion:
+- tables (full table metadata records; emitted when `chunk_include_document_level_details=True`)
+- image_markers (full image marker records; emitted when `chunk_include_document_level_details=True`)
 
 Current tabular_chunk_metadata baseline:
 - section_index
@@ -92,6 +101,7 @@ These values are intentionally lightweight baseline inputs for a future resolver
 ## Schema Boundaries
 - ingestion is responsible for extraction metadata (extraction_method, extraction_ts),
 - lifecycle state is responsible for source-unit timestamps and status,
+- chunk shaping keeps chunk-level metadata (`tabular_chunk_metadata`, `prose_chunk_metadata`) separate from document-level metadata (`document_metadata`) to reduce payload bloat,
 - retrieval consumes canonical fields without mutating identity metadata,
 - answer generation consumes retrieved evidence and may add view-level shaping only.
 

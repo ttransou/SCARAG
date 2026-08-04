@@ -27,6 +27,11 @@ Migration notes captured in this baseline:
    Older consumers that only used `answer`, `confidence`, and `citations` remain compatible because the field is additive.
 3. Citation shaping now follows generation-used evidence rather than the full retrieved set.
    Consumers should treat `citations` as the grounded answer support set, not as a retrieval dump.
+4. Ingestion diagnostics are exposed through `GET /api/ingestion/diagnostics`.
+   The diagnostics contract is additive and currently includes:
+   - `contract_version`
+   - `files` (per-file parser, status, skip reason, chunk counts, inferred doc types)
+   - `summary` (file/chunk totals, parser counts, skip-reason counts, inferred doc-type distribution)
 
 ## Update Rule
 

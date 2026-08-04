@@ -165,6 +165,8 @@ class RagConfig:
     lifecycle_skip_unchanged: bool = False
     lifecycle_audit_logging_enabled: bool = False
     lifecycle_audit_log_path: str = "data/.scarag_lifecycle_audit.jsonl"
+    ingestion_persist_lifecycle_state: bool = True
+    chunk_include_document_level_details: bool = False
     confidence_temporal_decay_enabled: bool = True
     confidence_temporal_decay_half_life_days: float = 365.0
     confidence_temporal_decay_floor: float = 0.35

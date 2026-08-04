@@ -299,8 +299,9 @@ def test_retrieval_preserves_chunk_metadata_fields(tmp_path: Path) -> None:
     assert first.get("tabular_chunk_metadata") is not None
     assert first.get("source_unit_local_id")
     assert first.get("source_unit_kind") == "tabular_section"
-    assert isinstance(first.get("table_metadata"), list)
-    assert isinstance(first.get("image_markers"), list)
+    assert isinstance(first.get("document_metadata"), dict)
+    assert first["document_metadata"]["table_count"] >= 1
+    assert first["document_metadata"]["image_marker_count"] >= 1
     assert isinstance(first.get("boilerplate_signal"), dict)
 
 

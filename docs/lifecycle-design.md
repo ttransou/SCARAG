@@ -57,6 +57,28 @@ Current baseline implementation:
 - missing/invalid timestamp policy is explicit (include or exclude),
 - lifecycle filter diagnostics counters are available from retrieval diagnostics output.
 
+## Exploratory Non-persistent Ingestion (Implemented Baseline)
+SCARAG now supports an explicit non-persistent ingestion mode for exploratory and test runs.
+
+Configuration:
+- `ingestion_persist_lifecycle_state=False`
+
+Behavior:
+- chunks still receive lifecycle-shaped fields (`status`, `ingestion_iso_ts`, `last_upsert_iso_ts`, `deletion_mark_iso_ts`) for schema stability,
+- no lifecycle state file writes are performed,
+- no persisted re-ingestion continuity is assumed across runs.
+
+This mode is intended for ad hoc experiments where deterministic chunk schema is needed without mutating lifecycle state on disk.
+
+## Internal Artifact Ingestion Guardrail (Implemented Baseline)
+To prevent state-file self-indexing, ingestion explicitly skips internal lifecycle artifacts:
+- `.scarag_lifecycle_state.json`
+- `.scarag_lifecycle_audit.jsonl`
+
+Skipped records are reported in ingestion diagnostics with:
+- `parser=internal_artifact`
+- `skip_reason=internal_artifact`
+
 ## Re-ingestion Behavior (Implemented Baseline + Target)
 Re-ingestion should preserve long-lived identity while refreshing update state.
 

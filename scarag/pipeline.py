@@ -4,13 +4,14 @@ import math
 import hashlib
 import json
 import re
-from collections import Counter
+from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from scarag.config import RagConfig
-from scarag.lifecycle import LifecycleStateStore
+from scarag.ingestion.loader import load_documents_with_diagnostics
+from scarag.lifecycle import LifecycleRecord, LifecycleStateStore
 from scarag.metadata import EvidenceMetadata, build_confidence_inputs, utc_now_iso
 from scarag.retrieval.interfaces import RetrievalRequest, RetrievalResponse, Retriever
 from scarag.retrieval.vector_backend import HashingVectorEmbedder, VectorEmbedder, cosine_similarity
@@ -26,6 +27,18 @@ _DEFAULT_DOC_TYPE_PATTERNS: dict[str, list[str]] = {
     "guideline": ["guideline", "guidelines", "best practice"],
     "report": ["report", "summary", "analysis"],
     "contract": ["contract", "agreement", "terms"],
+}
+
+_DOC_TYPE_PLACEHOLDERS = {
+    "unknown",
+    "placeholder",
+    "tbd",
+    "todo",
+    "none",
+    "null",
+    "n/a",
+    "na",
+    "-",
 }
 
 
@@ -197,6 +210,13 @@ def infer_doc_type(source: str, text: str, taxonomy: dict[str, Any] | None = Non
     return "unknown"
 
 
+def _resolved_doc_type(explicit_doc_type: Any, source: str, text: str, taxonomy: dict[str, Any]) -> str:
+    normalized = str(explicit_doc_type or "").strip().lower()
+    if normalized and normalized not in _DOC_TYPE_PLACEHOLDERS:
+        return normalized
+    return infer_doc_type(source, text, taxonomy=taxonomy)
+
+
 def _load_doc_type_taxonomy(config: RagConfig) -> dict[str, Any]:
     metadata = config.metadata if isinstance(config.metadata, dict) else {}
     taxonomy_overlay = metadata.get("taxonomy")
@@ -219,13 +239,84 @@ def _load_doc_type_taxonomy(config: RagConfig) -> dict[str, Any]:
     return loaded if isinstance(loaded, dict) else {}
 
 
+def _is_tabular_delimiter_profile(lines: list[str], delimiter: str) -> bool:
+    row_profiles: list[tuple[int, int]] = []
+    sentence_like_rows = 0
+    for line in lines:
+        if delimiter not in line:
+            continue
+        cells = [cell.strip() for cell in line.split(delimiter)]
+        non_empty = [cell for cell in cells if cell]
+        if len(non_empty) < 2:
+            continue
+        max_cell_words = max(len(cell.split()) for cell in non_empty)
+        row_profiles.append((len(non_empty), max_cell_words))
+        stripped = line.strip()
+        if stripped.endswith((".", "!", "?")):
+            sentence_like_rows += 1
+
+    if not row_profiles:
+        return False
+
+    min_rows = 2 if delimiter == "|" else 3
+    if len(row_profiles) < min_rows:
+        return False
+
+    column_counts = [profile[0] for profile in row_profiles]
+    max_words_per_cell = [profile[1] for profile in row_profiles]
+    dominant_col_count, dominant_col_freq = Counter(column_counts).most_common(1)[0]
+    consistent_columns = dominant_col_freq / len(row_profiles)
+    concise_cells = sum(1 for count in max_words_per_cell if count <= 8) / len(max_words_per_cell)
+
+    if dominant_col_count < 2:
+        return False
+    if consistent_columns < 0.6:
+        return False
+    if concise_cells < 0.6:
+        return False
+    if sentence_like_rows / len(row_profiles) > 0.4:
+        return False
+    return True
+
+
 def _looks_tabular(text: str) -> bool:
-    lines = [line for line in text.splitlines() if line.strip()]
+    lines = [line.strip() for line in text.splitlines() if line.strip()][:30]
     if len(lines) < 2:
         return False
-    pipe_lines = sum(1 for line in lines[:20] if "|" in line)
-    comma_lines = sum(1 for line in lines[:20] if line.count(",") >= 2)
-    return pipe_lines >= 2 or comma_lines >= 2
+    if _is_tabular_delimiter_profile(lines, "|"):
+        return True
+    return _is_tabular_delimiter_profile(lines, ",")
+
+
+def _document_metadata_payload(
+    table_metadata: Any,
+    image_markers: Any,
+    *,
+    include_details: bool,
+) -> dict[str, Any] | None:
+    tables = table_metadata if isinstance(table_metadata, list) else []
+    markers = image_markers if isinstance(image_markers, list) else []
+    if not tables and not markers:
+        return None
+
+    payload: dict[str, Any] = {
+        "table_count": len(tables),
+        "image_marker_count": len(markers),
+        "table_ids": [
+            str(item.get("table_id", "")).strip()
+            for item in tables
+            if isinstance(item, dict) and str(item.get("table_id", "")).strip()
+        ],
+        "image_marker_ids": [
+            str(item.get("marker_id", "")).strip()
+            for item in markers
+            if isinstance(item, dict) and str(item.get("marker_id", "")).strip()
+        ],
+    }
+    if include_details:
+        payload["tables"] = tables
+        payload["image_markers"] = markers
+    return payload
 
 
 def _normalize_window_policy(window_size: int, overlap: int, *, min_window_size: int) -> tuple[int, int, int]:
@@ -682,6 +773,7 @@ def build_chunk_index(
     chunks: list[dict[str, Any]] = []
     seen_fingerprints: set[str] = set()
     doc_type_taxonomy = _load_doc_type_taxonomy(config)
+    persist_lifecycle_state = bool(config.ingestion_persist_lifecycle_state)
     store = lifecycle_store or LifecycleStateStore(
         config.lifecycle_state_path,
         audit_log_path=config.lifecycle_audit_log_path,
@@ -700,21 +792,38 @@ def build_chunk_index(
         seen_fingerprints.add(fingerprint)
 
         source_unit_id = _source_unit_id(source)
-        lifecycle_record, lifecycle_action = store.upsert_with_policy(
-            source_unit_id=source_unit_id,
-            source=source,
-            content_fingerprint=fingerprint,
-            skip_unchanged=config.lifecycle_skip_unchanged,
-        )
-        if lifecycle_action == "unchanged_skipped":
-            continue
+        if persist_lifecycle_state:
+            lifecycle_record, lifecycle_action = store.upsert_with_policy(
+                source_unit_id=source_unit_id,
+                source=source,
+                content_fingerprint=fingerprint,
+                skip_unchanged=config.lifecycle_skip_unchanged,
+            )
+            if lifecycle_action == "unchanged_skipped":
+                continue
+        else:
+            now_iso = utc_now_iso()
+            lifecycle_record = LifecycleRecord(
+                source_unit_id=source_unit_id,
+                source=source,
+                content_fingerprint=fingerprint,
+                ingestion_iso_ts=now_iso,
+                last_upsert_iso_ts=now_iso,
+                deletion_mark_iso_ts=None,
+                status="active",
+            )
 
         extraction_method = str(document.get("extraction_method") or "text_file_parser")
         extraction_ts = str(document.get("extraction_ts") or utc_now_iso())
 
-        doc_type = str(document.get("doc_type") or infer_doc_type(source, text, taxonomy=doc_type_taxonomy))
+        doc_type = _resolved_doc_type(document.get("doc_type"), source, text, taxonomy=doc_type_taxonomy)
         table_metadata = document.get("table_metadata")
         image_markers = document.get("image_markers")
+        document_metadata = _document_metadata_payload(
+            table_metadata,
+            image_markers,
+            include_details=bool(config.chunk_include_document_level_details),
+        )
         tabular = bool(table_metadata) or _looks_tabular(text)
         if tabular:
             raw_tabular_chunks = _chunk_tabular(
@@ -820,8 +929,7 @@ def build_chunk_index(
                 source_unit_local_id=chunk_record.get("source_unit_local_id"),
                 source_unit_kind=chunk_record.get("source_unit_kind"),
                 source_unit_boundary=chunk_record.get("source_unit_boundary"),
-                table_metadata=table_metadata if isinstance(table_metadata, list) else None,
-                image_markers=image_markers if isinstance(image_markers, list) else None,
+                document_metadata=document_metadata,
             )
             chunks.append(metadata.to_dict())
 
@@ -838,6 +946,85 @@ def build_chunk_index(
             }
 
     return chunks
+
+
+def ingest_documents_with_diagnostics(
+    data_path: str | Path,
+    config: RagConfig,
+    lifecycle_store: LifecycleStateStore | None = None,
+) -> dict[str, Any]:
+    documents, loader_diagnostics = load_documents_with_diagnostics(data_path)
+    chunks = build_chunk_index(documents, config, lifecycle_store=lifecycle_store)
+
+    chunk_counts_by_source: dict[str, dict[str, Any]] = defaultdict(
+        lambda: {
+            "chunk_count": 0,
+            "tabular_chunk_count": 0,
+            "prose_chunk_count": 0,
+            "inferred_doc_types": set(),
+        }
+    )
+    inferred_doc_type_counts: Counter[str] = Counter()
+    for chunk in chunks:
+        source = str(chunk.get("source", ""))
+        if not source:
+            continue
+        per_source = chunk_counts_by_source[source]
+        per_source["chunk_count"] += 1
+        if bool(chunk.get("is_tabular")):
+            per_source["tabular_chunk_count"] += 1
+        else:
+            per_source["prose_chunk_count"] += 1
+        doc_type = str(chunk.get("doc_type", "unknown")).strip().lower() or "unknown"
+        per_source["inferred_doc_types"].add(doc_type)
+        inferred_doc_type_counts[doc_type] += 1
+
+    files_with_chunk_stats: list[dict[str, Any]] = []
+    diagnostics_files = loader_diagnostics.get("files", []) if isinstance(loader_diagnostics, dict) else []
+    for file_record in diagnostics_files if isinstance(diagnostics_files, list) else []:
+        if not isinstance(file_record, dict):
+            continue
+        source = str(file_record.get("source", ""))
+        chunk_stats = chunk_counts_by_source.get(
+            source,
+            {
+                "chunk_count": 0,
+                "tabular_chunk_count": 0,
+                "prose_chunk_count": 0,
+                "inferred_doc_types": set(),
+            },
+        )
+        files_with_chunk_stats.append(
+            {
+                "source": source,
+                "parser": file_record.get("parser"),
+                "status": file_record.get("status"),
+                "skip_reason": file_record.get("skip_reason"),
+                "chunk_count": int(chunk_stats.get("chunk_count", 0)),
+                "tabular_chunk_count": int(chunk_stats.get("tabular_chunk_count", 0)),
+                "prose_chunk_count": int(chunk_stats.get("prose_chunk_count", 0)),
+                "inferred_doc_types": sorted(chunk_stats.get("inferred_doc_types", set())),
+            }
+        )
+
+    summary = loader_diagnostics.get("summary", {}) if isinstance(loader_diagnostics, dict) else {}
+    if not isinstance(summary, dict):
+        summary = {}
+    summary["total_chunks"] = len(chunks)
+    summary["total_tabular_chunks"] = sum(item["tabular_chunk_count"] for item in files_with_chunk_stats)
+    summary["total_prose_chunks"] = sum(item["prose_chunk_count"] for item in files_with_chunk_stats)
+    summary["inferred_doc_type_counts"] = dict(sorted(inferred_doc_type_counts.items()))
+
+    diagnostics = {
+        "contract_version": "1.0",
+        "files": files_with_chunk_stats,
+        "summary": summary,
+    }
+    return {
+        "documents": documents,
+        "chunks": chunks,
+        "diagnostics": diagnostics,
+    }
 
 
 def retrieve_chunks(

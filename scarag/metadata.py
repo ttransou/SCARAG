@@ -50,8 +50,7 @@ class EvidenceMetadata:
     source_unit_local_id: str | None = None
     source_unit_kind: str | None = None
     source_unit_boundary: dict[str, Any] | None = None
-    table_metadata: list[dict[str, Any]] | None = None
-    image_markers: list[dict[str, Any]] | None = None
+    document_metadata: dict[str, Any] | None = None
     boilerplate_signal: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
@@ -76,8 +75,7 @@ class EvidenceMetadata:
             "source_unit_local_id": self.source_unit_local_id,
             "source_unit_kind": self.source_unit_kind,
             "source_unit_boundary": self.source_unit_boundary,
-            "table_metadata": self.table_metadata,
-            "image_markers": self.image_markers,
+            "document_metadata": self.document_metadata,
             "boilerplate_signal": self.boilerplate_signal,
         }
 

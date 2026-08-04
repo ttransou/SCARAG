@@ -42,3 +42,14 @@ def test_chat_endpoint_returns_contract_fields() -> None:
     assert "answer" in body
     assert "confidence" in body
     assert body["confidence"] in {"high", "low", "abstain"}
+
+
+def test_ingestion_diagnostics_endpoint_returns_contract() -> None:
+    client = TestClient(app)
+    response = client.get("/api/ingestion/diagnostics")
+    assert response.status_code == 200
+
+    body = response.json()
+    assert body["contract_version"] == "1.0"
+    assert isinstance(body.get("files"), list)
+    assert isinstance(body.get("summary"), dict)
