@@ -217,6 +217,34 @@ def _resolved_doc_type(explicit_doc_type: Any, source: str, text: str, taxonomy:
     return infer_doc_type(source, text, taxonomy=taxonomy)
 
 
+def _legacy_doc_text_is_low_fidelity(text: str) -> bool:
+    normalized = str(text or "").strip()
+    if not normalized:
+        return True
+
+    alpha_chars = sum(1 for char in normalized if char.isalpha())
+    alpha_ratio = alpha_chars / max(1, len(normalized))
+    noisy_markers = ("bjbj", " BT ", " DT ", "HYPERLINK", "w:WordDocument")
+    marker_hits = sum(1 for marker in noisy_markers if marker in normalized)
+    normalized_lower = normalized.lower()
+    looks_binary_prefixed = normalized_lower.startswith("0 bjbj") or normalized_lower.startswith("bjbj")
+    return alpha_ratio < 0.6 or marker_hits >= 2 or looks_binary_prefixed
+
+
+def _resolved_doc_type_for_document(
+    explicit_doc_type: Any,
+    source: str,
+    text: str,
+    taxonomy: dict[str, Any],
+    extraction_method: str,
+) -> str:
+    normalized_method = str(extraction_method).strip().lower()
+    if normalized_method.startswith("doc_legacy") and _legacy_doc_text_is_low_fidelity(text):
+        # On low-fidelity legacy DOC text, trust source-path and taxonomy defaults over noisy content body.
+        return _resolved_doc_type(explicit_doc_type, source, "", taxonomy)
+    return _resolved_doc_type(explicit_doc_type, source, text, taxonomy)
+
+
 def _load_doc_type_taxonomy(config: RagConfig) -> dict[str, Any]:
     metadata = config.metadata if isinstance(config.metadata, dict) else {}
     taxonomy_overlay = metadata.get("taxonomy")
@@ -241,6 +269,7 @@ def _load_doc_type_taxonomy(config: RagConfig) -> dict[str, Any]:
 
 def _is_tabular_delimiter_profile(lines: list[str], delimiter: str) -> bool:
     row_profiles: list[tuple[int, int]] = []
+    row_cells: list[list[str]] = []
     sentence_like_rows = 0
     for line in lines:
         if delimiter not in line:
@@ -251,6 +280,7 @@ def _is_tabular_delimiter_profile(lines: list[str], delimiter: str) -> bool:
             continue
         max_cell_words = max(len(cell.split()) for cell in non_empty)
         row_profiles.append((len(non_empty), max_cell_words))
+        row_cells.append(non_empty)
         stripped = line.strip()
         if stripped.endswith((".", "!", "?")):
             sentence_like_rows += 1
@@ -270,6 +300,20 @@ def _is_tabular_delimiter_profile(lines: list[str], delimiter: str) -> bool:
 
     if dominant_col_count < 2:
         return False
+
+    if delimiter == ",":
+        if dominant_col_count < 3:
+            numeric_second_cells = sum(
+                1
+                for cells in row_cells
+                if len(cells) >= 2 and re.fullmatch(r"[-+]?\d+(\.\d+)?", cells[1].strip())
+            )
+            short_first_cells = sum(1 for cells in row_cells if len(cells[0].split()) <= 3)
+            if numeric_second_cells / len(row_cells) < 0.5:
+                return False
+            if short_first_cells / len(row_cells) < 0.5:
+                return False
+
     if consistent_columns < 0.6:
         return False
     if concise_cells < 0.6:
@@ -778,6 +822,7 @@ def build_chunk_index(
         config.lifecycle_state_path,
         audit_log_path=config.lifecycle_audit_log_path,
         audit_logging_enabled=config.lifecycle_audit_logging_enabled,
+        persistence_enabled=config.lifecycle_persistence_enabled,
     )
 
     for document in documents:
@@ -816,7 +861,13 @@ def build_chunk_index(
         extraction_method = str(document.get("extraction_method") or "text_file_parser")
         extraction_ts = str(document.get("extraction_ts") or utc_now_iso())
 
-        doc_type = _resolved_doc_type(document.get("doc_type"), source, text, taxonomy=doc_type_taxonomy)
+        doc_type = _resolved_doc_type_for_document(
+            document.get("doc_type"),
+            source,
+            text,
+            doc_type_taxonomy,
+            extraction_method,
+        )
         table_metadata = document.get("table_metadata")
         image_markers = document.get("image_markers")
         document_metadata = _document_metadata_payload(
