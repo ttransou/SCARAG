@@ -7,5 +7,14 @@
     "source": "example/painting-catalog-entry.txt",
     "source_unit_id": "su_45ab2acb8923ca9a",
     "status": "active"
+  },
+  "su_544bf3315342fc8a": {
+    "content_fingerprint": "ec093cc812d5ee52b14254306805ff817097865c",
+    "deletion_mark_iso_ts": null,
+    "ingestion_iso_ts": "2026-08-04T17:00:02Z",
+    "last_upsert_iso_ts": "2026-08-04T17:00:29Z",
+    "source": "data/.scarag_lifecycle_state.json",
+    "source_unit_id": "su_544bf3315342fc8a",
+    "status": "active"
   }
 }
