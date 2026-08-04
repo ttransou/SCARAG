@@ -21,6 +21,7 @@ _REQUIRED_ONTOLOGY_CONCEPTS = {
 
 _PREFERRED_DOC_TYPE_WEIGHT = 1.2
 _LOWER_PRIORITY_DOC_TYPE_WEIGHT = 0.8
+DEFAULT_PROFILE = "shakespeare_test"
 
 
 def _validate_ontology_path(concepts_path: str) -> None:
@@ -114,7 +115,7 @@ def _validate_doc_type_taxonomy_path(doc_type_taxonomy_path: str) -> None:
 class RagConfig:
     data_path: str = "data"
     thesaurus_path: str = "config/synonyms.json"
-    profile: str = "default"
+    profile: str = DEFAULT_PROFILE
     generation_mode: str = "extractive"
     top_k: int = 5
     min_retrieval_score: float = 0.25
@@ -175,6 +176,10 @@ class RagConfig:
     confidence_intent_mismatch_penalty: float = 0.25
     confidence_intent_adjustment_floor: float = 0.7
     metadata: dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def default(cls, **overrides: Any) -> "RagConfig":
+        return cls.from_profile(DEFAULT_PROFILE, **overrides)
 
     @classmethod
     def from_profile(cls, profile: str, **overrides: Any) -> "RagConfig":

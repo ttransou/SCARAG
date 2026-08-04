@@ -63,6 +63,52 @@ Current document_metadata baseline:
 - image_marker_count
 - table_ids
 - image_marker_ids
+- metadata_tiers (when document-level metadata is available)
+
+Shakespeare branch metadata tier payload (`document_metadata.metadata_tiers`):
+
+- reference
+	- title
+	- author
+	- document_type
+	- act, scene, stanza, section, page
+	- speaker or attributed_person
+	- line_start, line_end, passage_start, passage_end
+	- source
+	- edition
+- context
+	- composition_date
+	- publication_or_performance_date
+	- genre
+	- historical_setting
+	- alternate_titles
+	- edition_history
+	- related_works
+- interpretive
+	- themes
+	- interpretive_traditions
+	- disputed_classifications
+	- commentary_links
+	- critical_essays
+	- editorial_notes
+	- claims_with_source_attribution
+
+Placement guidance for Shakespeare Tier 1 fields:
+
+- Document-scoped reference fields belong in `document_metadata.metadata_tiers.reference`.
+- Use `document_metadata.metadata_tiers.reference` for `title`, `author`, `document_type`, `source`, and `edition`.
+- Passage-scoped reference fields should remain chunk-local rather than document-global.
+- Use `source_unit_kind` and `source_unit_local_id` to identify the local dramatic or poetic unit that a chunk came from.
+- Use `source_unit_boundary` for location-bearing Tier 1 fields such as `act`, `scene`, `stanza`, `section`, `page`, `line_start`, `line_end`, `passage_start`, and `passage_end` when they can be derived from the source structure.
+- Attach `speaker` and `attributed_person` to the same chunk-local passage metadata used for structural boundaries so they can be reviewed against the exact cited passage.
+- Do not store passage-scoped values only at document level, because they become ambiguous once chunks from different scenes, speeches, or stanzas are retrieved together.
+
+Verification expectation for inferred Tier 1 fields:
+
+- If a field is copied directly from explicit source text, it is human-verifiable by exact text match.
+- If a field is normalized from source text (for example edition wording or title cleanup), verification should confirm both the source phrase and the normalized stored value.
+- If a field is heuristic or pattern-inferred, ingestion diagnostics should expose it for review rather than treating it as silently authoritative.
+- If the source does not support a field cleanly, leave the field unset instead of inventing a value.
 
 Optional document_metadata detail expansion:
 - tables (full table metadata records; emitted when `chunk_include_document_level_details=True`)
@@ -102,6 +148,7 @@ These values are intentionally lightweight baseline inputs for a future resolver
 - ingestion is responsible for extraction metadata (extraction_method, extraction_ts),
 - lifecycle state is responsible for source-unit timestamps and status,
 - chunk shaping keeps chunk-level metadata (`tabular_chunk_metadata`, `prose_chunk_metadata`) separate from document-level metadata (`document_metadata`) to reduce payload bloat,
+- document-level scholarly or bibliographic metadata should be supplied through `metadata` or `metadata_tiers` on ingestion records and is normalized into `document_metadata.metadata_tiers`,
 - retrieval consumes canonical fields without mutating identity metadata,
 - answer generation consumes retrieved evidence and may add view-level shaping only.
 

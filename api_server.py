@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from scarag.confidence import resolve_confidence
-from scarag.config import RagConfig
+from scarag.config import DEFAULT_PROFILE, RagConfig
 from scarag.generation.answerer import generate_answer_result
 from scarag.pipeline import ingest_documents_with_diagnostics, is_tabular_intent, load_thesaurus, retrieve_chunks
 from scarag.provenance import (
@@ -37,7 +37,7 @@ except ImportError:  # pragma: no cover - fallback for lightweight environments
 
 app = FastAPI(title="SCARAG", version="0.1.0")
 
-_CONFIG = RagConfig()
+_CONFIG = RagConfig.default()
 _THESAURUS = load_thesaurus(_CONFIG)
 _CHUNK_CACHE: list[dict[str, Any]] | None = None
 _INGESTION_DIAGNOSTICS_CACHE: dict[str, Any] | None = None
@@ -116,6 +116,7 @@ def health() -> dict[str, Any]:
     return {
         "status": "ok",
         "service": "SCARAG",
+        "profile": DEFAULT_PROFILE,
         "mode": _CONFIG.generation_mode,
         "contract_version": _CONTRACT_VERSION,
         "chunks_indexed": len(chunks),

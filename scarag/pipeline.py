@@ -12,7 +12,7 @@ from typing import Any
 from scarag.config import RagConfig
 from scarag.ingestion.loader import load_documents_with_diagnostics
 from scarag.lifecycle import LifecycleRecord, LifecycleStateStore
-from scarag.metadata import EvidenceMetadata, build_confidence_inputs, utc_now_iso
+from scarag.metadata import EvidenceMetadata, build_confidence_inputs, build_metadata_tiers, utc_now_iso
 from scarag.retrieval.interfaces import RetrievalRequest, RetrievalResponse, Retriever
 from scarag.retrieval.vector_backend import HashingVectorEmbedder, VectorEmbedder, cosine_similarity
 
@@ -411,11 +411,23 @@ def _document_metadata_payload(
     table_metadata: Any,
     image_markers: Any,
     *,
+    metadata: Any,
+    metadata_tiers: Any,
+    doc_type: str,
+    source: str,
+    source_work_title: str | None,
     include_details: bool,
 ) -> dict[str, Any] | None:
     tables = table_metadata if isinstance(table_metadata, list) else []
     markers = image_markers if isinstance(image_markers, list) else []
-    if not tables and not markers:
+    tiers = build_metadata_tiers(
+        metadata=metadata,
+        metadata_tiers=metadata_tiers,
+        doc_type=doc_type,
+        source=source,
+        source_work_title=source_work_title,
+    )
+    if not tables and not markers and not tiers:
         return None
 
     payload: dict[str, Any] = {
@@ -432,6 +444,8 @@ def _document_metadata_payload(
             if isinstance(item, dict) and str(item.get("marker_id", "")).strip()
         ],
     }
+    if tiers:
+        payload["metadata_tiers"] = tiers
     if include_details:
         payload["tables"] = tables
         payload["image_markers"] = markers
@@ -948,6 +962,11 @@ def build_chunk_index(
         document_metadata = _document_metadata_payload(
             table_metadata,
             image_markers,
+            metadata=document.get("metadata"),
+            metadata_tiers=document.get("metadata_tiers"),
+            doc_type=doc_type,
+            source=source,
+            source_work_title=source_work_title,
             include_details=bool(config.chunk_include_document_level_details),
         )
         tabular = bool(table_metadata) or _looks_tabular(text)

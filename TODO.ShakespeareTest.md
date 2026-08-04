@@ -5,7 +5,7 @@ This file tracks branch-specific work for Shakespeare-only ingestion testing.
 ## Scope
 
 - Branch scope is Shakespeare corpus testing only.
-- Use humanities-style overlay behavior as baseline.
+- Use Shakespeare-specific profile, taxonomy, and vocabulary as the active baseline.
 - Focus on generating candidate metadata before final ingestion decisions.
 
 ## Findings-Driven TODO (For Main Branch Porting)
@@ -25,3 +25,45 @@ This file tracks branch-specific work for Shakespeare-only ingestion testing.
 - [ ] Re-run ingestion after each parser/heuristic change and snapshot diagnostics.
 - [ ] Track metadata candidate quality (doc_type, source unit boundaries, extraction method, lifecycle fields).
 - [ ] Confirm changes remain framework-safe before proposing main-branch merges.
+
+## Metadata Tier TODO
+
+- [ ] Step 1: define the Tier 1 fields that must be derived directly from raw works in `data/` with no manual pre-annotation.
+	- `title`
+	- `author`
+	- `document_type`
+	- `source`
+	- `edition`
+	- `act`
+	- `scene`
+	- `stanza`
+	- `section`
+	- `page`
+	- `speaker`
+	- `attributed_person`
+	- `line_start`
+	- `line_end`
+	- `passage_start`
+	- `passage_end`
+- [ ] Step 2: implement and validate document-level inference for Tier 1 core fields: `title`, `author`, `document_type`, `source`, and `edition`.
+	- helper: filename and source parser
+	- helper: title-block and front-matter parser
+	- helper: work-identity normalizer
+	- helper: taxonomy resolver
+- [ ] Step 3: implement and validate passage-level inference for Tier 1 location fields from source text structure: `act`, `scene`, `stanza`, `section`, `page`, `speaker`, `attributed_person`, and line or passage boundaries.
+	- helper: dramatic structure parser
+	- helper: poetry structure parser
+	- helper: speaker attribution parser
+	- helper: passage boundary helper
+	- helper: page marker helper
+- [ ] Step 4: add ingestion diagnostics that show where each Tier 1 field was stored, whether it was exact, normalized, inferred, or missing, and which values require human review.
+	- helper: verification-state emitter
+- [ ] Step 5: define the manual curation format for Tier 2 Context metadata so bibliographic and historical fields can be attached after raw ingestion.
+- [ ] Step 6: define the optional manual curation format for Tier 3 Interpretive metadata so scholarly enrichment remains attributable and reviewable.
+- [ ] Step 7: keep Tier 2 and Tier 3 overlays branch-local and curator-managed; do not require them for baseline Shakespeare ingestion.
+
+## Repo Streamlining TODO
+
+- [ ] Strip remaining framework-first branding from branch-facing docs, scripts, and UI copy.
+- [ ] Switch branch-visible naming and messaging to Shakespeare/domain-specific branding where runtime behavior is already Shakespeare-only.
+- [ ] Clean branch-only repo surfaces by removing stale generic or humanities carry-over guidance that no longer matches this branch.

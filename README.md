@@ -1,7 +1,7 @@
 # SCARAG 🐦‍⬛
 Schema-Conscious Agnostic RAG (Retrieval-Augmented Generation)
 
-**Metadata-first RAG for any domain, and supported format**
+**Metadata-first RAG tuned for the Shakespeare corpus in this branch**
 
 T. Transou - June 2026 - Active Development 🚧
 
@@ -12,16 +12,16 @@ SCARAG functions as a governed context layer: detailed definition and proof crit
 ## Table of Contents
 - [One-Sentence Claim](#one-sentence-claim)
 - [Why SCARAG Exists](#why-scarag-exists)
-- [Framework Positioning](#framework-positioning)
+- [Branch Positioning](#branch-positioning)
 - [Core Premise](#core-premise)
 - [What the Name Means](#what-the-name-means)
 - [Design and Evaluation Philosophy](#design-and-evaluation-philosophy)
 - [Architecture at a Glance](#architecture-at-a-glance)
-- [Framework Components](#framework-components)
+- [Core Components](#core-components)
 - [Operational Design Docs](#operational-design-docs)
-- [Current Public Surfaces](#current-public-surfaces)
-- [Framework Capabilities](#framework-capabilities)
-- [Framework Versus Implementation Boundaries](#framework-versus-implementation-boundaries)
+- [Current Surfaces](#current-surfaces)
+- [Implementation Capabilities](#implementation-capabilities)
+- [Core Versus Branch-Specific Boundaries](#core-versus-branch-specific-boundaries)
 - [Reality Snapshot](#reality-snapshot)
 - [Environment Assumptions](#environment-assumptions)
 - [Run the Reference Stack (React + FastAPI)](#run-the-reference-stack-react--fastapi)
@@ -29,7 +29,7 @@ SCARAG functions as a governed context layer: detailed definition and proof crit
 - [Repo Map (Current)](#repo-map-current)
 
 ## One-Sentence Claim
-SCARAG is a metadata-first RAG framework for building document-grounded systems where provenance, lifecycle, confidence, and domain semantics are first-class concerns.
+This branch of SCARAG is a metadata-first RAG implementation tuned for Shakespeare corpus retrieval, where provenance, lifecycle, confidence, and source-work semantics are first-class concerns.
 
 ## Why SCARAG Exists
 The central claim is simple: retrieval systems should make evidence legible, not merely fluent.
@@ -40,10 +40,10 @@ The central claim is simple: retrieval systems should make evidence legible, not
 
 SCARAG is not designed to make generation sound more confident. It is designed to make evidence legible, traceable, and governable.
 
-## Framework Positioning
-This repository is a public framework baseline for SCARAG. It documents the core principles, reference implementation surfaces, and design choices that matter when adapting the system to a new domain.
+## Branch Positioning
+This repository branch is the Shakespeare-focused implementation surface for SCARAG. It keeps the core SCARAG pipeline, but the default runtime, corpus assumptions, and profile guidance are streamlined around mixed-format Shakespeare works rather than a generic cross-domain baseline.
 
-The README is written as a practical orientation document rather than a changelog. Detailed implementation status, roadmap notes, and evolving development history belong in the more expansive documentation set under docs/.
+The README is written as a practical orientation document rather than a changelog. Detailed implementation status, corpus-specific profile notes, and evolving development history belong in the documentation set under docs/.
 
 ## Core Premise
 Most RAG systems fail long before generation quality becomes the main issue. They fail because retrieval lacks evidence governance: source identity, metadata quality, freshness, lifecycle state, and domain semantics.
@@ -54,7 +54,7 @@ SCARAG treats retrieval as evidence governance, not only similarity search.
 SCARAG = Schema-Conscious Agnostic RAG.
 
 - **Schema-Conscious:** schema is treated as an interpretive layer, not a convenience layer; retrieval quality depends on explicit source meaning and metadata state.
-- **Agnostic:** the framework is domain-agnostic but not domain-indifferent; implementation teams are expected to tailor ontology, vocabulary, lifecycle policy, and confidence behavior by domain.
+- **Agnostic:** the core design remains domain-agnostic, but this branch deliberately applies it to Shakespeare-specific ontology, vocabulary, lifecycle policy, and confidence behavior.
 - **RAG:** retrieval-augmented generation remains the operating pattern; answers are expected to remain anchored to retrieved evidence and provenance.
 
 In short, agnostic does not mean generic.
@@ -72,7 +72,7 @@ Evaluation is used as diagnosis, not decoration.
 
 The objective is not one benchmark number. The objective is failure visibility: ingestion, chunking, retrieval, metadata weighting, tabular grounding, abstention behavior, evidence presentation, and generation behavior should all be diagnosable.
 
-SCARAG is a framework posture, not only a code package. It asks implementors to make evidence legible before asking the model to speak, to treat abstention as correct behavior when support is weak, and to keep framework primitives separate from implementation-specific deployment and provider choices.
+SCARAG remains a framework posture, not only a code package. This branch applies that posture to a concrete Shakespeare corpus so evidence remains legible before the model speaks, abstention remains acceptable when support is weak, and source-work signals stay explicit in retrieval.
 
 ## Architecture at a Glance
 ```mermaid
@@ -94,10 +94,10 @@ flowchart TB
     R --> C[Confidence and lifecycle policy]
 ```
 
-The profile layer adapts vocabulary, document types, and retrieval behavior without changing the framework core.
+The default profile layer in this branch adapts vocabulary, document types, and retrieval behavior to Shakespeare without changing the framework core.
 
-## Framework Components
-The repository includes a reference implementation that demonstrates the framework's core layers:
+## Core Components
+The repository includes the implementation layers used by the Shakespeare corpus workflow:
 
 - ingestion and normalization for mixed document formats,
 - chunking and source-unit segmentation,
@@ -109,18 +109,18 @@ The repository includes a reference implementation that demonstrates the framewo
 These are described in detail in the [Documentation Map (Current)](#documentation-map-current).
 
 ## Operational Design Docs
-The README remains framework-oriented. Detailed implementation notes, contracts, profile guidance, and evaluation references are maintained in the [Documentation Map (Current)](#documentation-map-current).
+The README stays high-level. Detailed implementation notes, contracts, Shakespeare profile guidance, and evaluation references are maintained in the [Documentation Map (Current)](#documentation-map-current).
 
-## Current Public Surfaces
+## Current Surfaces
 - Core framework package: [scarag/](scarag)
 - Reference API: [api_server.py](api_server.py)
 - Reference UI: [frontend/](frontend)
 - Operations and evaluation scripts: [scripts/](scripts)
-- Configuration and profiles: [config/](config) and [profiles/](profiles)
+- Shakespeare-oriented configuration and profiles: [config/](config) and [profiles/](profiles)
 - Validation and diagnostics assets: [tests/](tests), [eval/](eval), and [docs/](docs)
 
-## Framework Capabilities
-The reference implementation demonstrates the framework's main capabilities across five core areas:
+## Implementation Capabilities
+The implementation demonstrates the branch's main capabilities across five core areas:
 
 - ingestion and normalization of mixed document formats,
 - chunking and source-unit segmentation,
@@ -130,18 +130,19 @@ The reference implementation demonstrates the framework's main capabilities acro
 
 The detailed mechanics for each area are documented in the [Documentation Map (Current)](#documentation-map-current).
 
-## Framework Versus Implementation Boundaries
-SCARAG intentionally separates framework primitives from implementation-specific choices.
+## Core Versus Branch-Specific Boundaries
+SCARAG still separates framework primitives from branch-specific choices.
 
-- **Framework-owned surfaces** include the core retrieval and evidence pipeline, reference API and UI structure, and baseline evaluation tooling.
-- **Implementation-owned surfaces** include live provider integration, deployment topology, authentication, observability, and domain-specific ontology or policy governance.
+- **Core SCARAG surfaces** include the retrieval and evidence pipeline, reference API and UI structure, and baseline evaluation tooling.
+- **Shakespeare branch surfaces** include the default profile, corpus inventory, source-work taxonomy, and retrieval vocabulary.
 
-### Domain-specific profiles and the humanities example
-The framework is intentionally domain-agnostic but not domain-indifferent. The repository includes a humanities-oriented profile as a concrete starting point for collections shaped by provenance, attribution, edition history, archival context, and interpretive uncertainty. That profile is documented in [docs/humanities-profile.md](docs/humanities-profile.md) and can serve as a template for other implementors building profiles for legal, scientific, corporate, or cultural heritage settings.
+### Default profile for this branch
+The default runtime profile in this branch is [profiles/shakespeare_test.json](profiles/shakespeare_test.json). It is documented in [docs/shakespeare-test-profile.md](docs/shakespeare-test-profile.md) and drives source-work-aware retrieval, Shakespeare-specific document typing, and branch corpus assumptions.
 
 For explicit deployment ownership boundaries, see [docs/deployment-boundaries.md](docs/deployment-boundaries.md).
 
 ## Reality Snapshot
+- Default runtime profile is `shakespeare_test` for this branch.
 - Generation modes available: extractive (default), mock, and live placeholder.
 - Live mode is an adapter hook and currently returns a clear provider-not-configured message.
 - Generation returns structured grounding diagnostics, including abstention reason codes and cited chunk ids, behind the API envelope.
@@ -161,6 +162,7 @@ For explicit deployment ownership boundaries, see [docs/deployment-boundaries.md
 - Node.js: an LTS Node runtime is available for the reference frontend.
 - Frontend dependencies: install from `frontend/package.json` before running the UI.
 - Corpus layout: default corpus path is `data/`; evaluator datasets live under `eval/datasets`; evaluator reports are written to `eval/reports`.
+- Default branch profile: `shakespeare_test`; override it only when intentionally comparing other overlays.
 - Startup commands: baseline startup path is `bash ./start_everything.sh`; manual frontend/API startup commands are documented below.
 
 ## Run the Reference Stack (React + FastAPI)
@@ -193,7 +195,7 @@ In another terminal from repo root:
 ## Contributor Guide
 Primary edit surfaces:
 - api_server.py: API contract, chat envelope, citation shaping.
-- scarag/: ingestion, retrieval pipeline, generation modes, config behavior.
+- scarag/: ingestion, retrieval pipeline, generation modes, and Shakespeare-first config defaults.
 - frontend/src/App.jsx and frontend/src/styles.css: reference UI and evidence drawer behavior.
 - frontend/src/responseNormalization.js: frontend response normalization and legacy payload fallback behavior.
 - scripts/: startup, dedupe, eval, workspace reset.
@@ -234,7 +236,7 @@ Recommended entry points:
 - Framework status and orientation: [docs/implementation-status.md](docs/implementation-status.md), [docs/philosophy.md](docs/philosophy.md)
 - Core architecture and contracts: [docs/metadata-model.md](docs/metadata-model.md), [docs/retrieval-design.md](docs/retrieval-design.md), [docs/lifecycle-design.md](docs/lifecycle-design.md), [docs/confidence-framework.md](docs/confidence-framework.md), [docs/tabular-grounding.md](docs/tabular-grounding.md), [docs/generation-contract.md](docs/generation-contract.md), [docs/api-contract-migrations.md](docs/api-contract-migrations.md)
 - Frontend behavior: [docs/reference-ui-contract.md](docs/reference-ui-contract.md), [docs/frontend-principles.md](docs/frontend-principles.md), [docs/frontend-state-model.md](docs/frontend-state-model.md)
-- Profiles and tailoring: [docs/profile-catalog.md](docs/profile-catalog.md), [docs/humanities-profile.md](docs/humanities-profile.md), [docs/nlp-tailoring-guide.md](docs/nlp-tailoring-guide.md)
+- Profiles and tailoring: [docs/shakespeare-test-profile.md](docs/shakespeare-test-profile.md), [docs/profile-catalog.md](docs/profile-catalog.md), [docs/nlp-tailoring-guide.md](docs/nlp-tailoring-guide.md)
 - Evaluation: [docs/evaluation-blueprint.md](docs/evaluation-blueprint.md)
 
 ## Bibliography

@@ -2,21 +2,31 @@
 
 This document provides a compact map of the profile assets currently included in the repository and the purpose each one serves.
 
-## Current placeholder profiles
+## Active branch profile
 
-The repository currently includes two placeholder profiles in the profiles/ directory:
+The active runtime profile for this branch is `shakespeare_test`.
+
+### Shakespeare test profile
+
+- File: profiles/shakespeare_test.json
+- Purpose: default Shakespeare corpus profile for this branch, covering mixed-format works, source-work-aware retrieval, and Shakespeare-specific document typing.
+- Use when: you are running the repository normally on this branch.
+
+## Secondary comparison profiles
+
+The repository still includes additional profiles in the profiles/ directory for comparison or framework-oriented testing:
 
 ### Default profile
 
 - File: profiles/default.json
-- Purpose: baseline profile for general-purpose schema-conscious RAG behavior.
-- Use when: you want a neutral starting point before introducing domain-specific terminology or lifecycle rules.
+- Purpose: neutral baseline profile for framework-level regression checks.
+- Use when: you want to compare Shakespeare behavior against an untailored baseline.
 
 ### Humanities profile
 
 - File: profiles/humanities.json
-- Purpose: a humanities-oriented profile for archival, textual, and cultural heritage materials.
-- Use when: your corpus contains provenance-heavy records, editions, oral histories, annotations, art-historical notes, or literary scholarship.
+- Purpose: broader humanities-oriented comparison profile for archival, textual, and cultural heritage materials.
+- Use when: you are comparing the Shakespeare overlay against a more general humanities configuration.
 
 ## Supporting assets
 
@@ -25,7 +35,13 @@ The repository currently includes two placeholder profiles in the profiles/ dire
 - File: config/humanities_synonyms.json
   - Provides humanities-oriented vocabulary for provenance, attribution, archive, annotation, art, and literature.
 - File: docs/humanities-profile.md
-  - Documents the rationale, intended use, and design thinking behind the humanities profile.
+  - Documents the rationale, intended use, and design thinking behind the humanities comparison profile.
+- File: config/shakespeare_doc_type_taxonomy.json
+  - Adds Shakespeare-specific work and genre typing for known corpus titles, source forms, and fallback behavior.
+- File: config/shakespeare_synonyms.json
+  - Provides Shakespeare-oriented vocabulary for dramatic structure, editorial context, and work-name retrieval.
+- File: docs/shakespeare-test-profile.md
+  - Documents the rationale, intended use, and operating assumptions behind the branch-default Shakespeare profile.
 
 ## Profile creation pattern
 

@@ -1,14 +1,17 @@
 from fastapi.testclient import TestClient
 
 from api_server import app
+from scarag.config import DEFAULT_PROFILE
 
 
 def test_health_endpoint() -> None:
     client = TestClient(app)
     response = client.get("/api/health")
+    body = response.json()
     assert response.status_code == 200
-    assert response.json()["status"] == "ok"
-    assert response.json()["contract_version"] == "1.0"
+    assert body["status"] == "ok"
+    assert body["contract_version"] == "1.0"
+    assert body["profile"] == DEFAULT_PROFILE
 
 
 def test_chat_endpoint_handles_empty_query() -> None:

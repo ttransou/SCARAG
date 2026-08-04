@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from scarag.confidence import resolve_confidence
-from scarag.config import RagConfig
+from scarag.config import DEFAULT_PROFILE, RagConfig
 from scarag.generation.answerer import generate_answer
 from scarag.ingestion.loader import load_documents
 from scarag.pipeline import build_chunk_index, is_tabular_intent, load_thesaurus, retrieve_chunks
@@ -433,7 +433,7 @@ def main() -> None:
     parser.add_argument("--data", default="data")
     parser.add_argument("--dataset", action="append", default=[])
     parser.add_argument("--generation-mode", default="extractive")
-    parser.add_argument("--profile", default="default")
+    parser.add_argument("--profile", default=DEFAULT_PROFILE)
     parser.add_argument("--thesaurus", default="config/synonyms.json")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--min-retrieval-score", type=float, default=0.25)

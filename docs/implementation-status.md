@@ -8,6 +8,7 @@ This document tracks implementation progress for the framework surfaces describe
 - record milestone-level status updates.
 
 ## Current Baseline
+- Default branch runtime profile is now `shakespeare_test`, with API and evaluation entry points loading the Shakespeare overlay unless explicitly overridden.
 - Core ingestion, chunking, lexical retrieval, lifecycle persistence, and API/UI reference surfaces are present.
 - Ingestion parser coverage now includes XML (`.xml`) and legacy DOC (`.doc`) paths in the baseline loader.
 - Ingestion diagnostics now report explicit per-file parser and skip reasons, including unsupported-format and internal-artifact skips.

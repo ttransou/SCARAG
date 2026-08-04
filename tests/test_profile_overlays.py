@@ -3,8 +3,17 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from scarag.config import RagConfig
+from scarag.config import DEFAULT_PROFILE, RagConfig
 from scarag.pipeline import build_chunk_index
+
+
+def test_default_profile_helper_loads_shakespeare_overlay() -> None:
+    config = RagConfig.default()
+
+    assert DEFAULT_PROFILE == "shakespeare_test"
+    assert config.profile == "shakespeare_test"
+    assert config.metadata["profile_id"] == "shakespeare_test"
+    assert config.thesaurus_path == "config/shakespeare_synonyms.json"
 
 
 def test_from_profile_maps_synonyms_and_lifecycle_overlay(tmp_path: Path, monkeypatch) -> None:

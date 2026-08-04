@@ -3,7 +3,7 @@
     "content_fingerprint": "06d53e7e692aabc3edbbe1b798bef70c69bd8e1c",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:30Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/othello_TXT_FolgerShakespeare.txt",
     "source_unit_id": "su_3da50e3966f21008",
     "status": "active"
@@ -12,7 +12,7 @@
     "content_fingerprint": "bc07fdb8cf4963158eefd2f160d75c1e1f48e103",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:31Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/titus-andronicus_TXT_FolgerShakespeare.txt",
     "source_unit_id": "su_3e9caf05a94456ee",
     "status": "active"
@@ -21,16 +21,25 @@
     "content_fingerprint": "73a53edf3620afdf62f3ddf537867c6cfbca5f2e",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:30Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/Son.xml",
     "source_unit_id": "su_3edb0f8be3e729f0",
+    "status": "active"
+  },
+  "su_45ab2acb8923ca9a": {
+    "content_fingerprint": "1c569f66114ee28544f4aec25e3b85a3d4044322",
+    "deletion_mark_iso_ts": null,
+    "ingestion_iso_ts": "2026-08-04T19:46:46Z",
+    "last_upsert_iso_ts": "2026-08-04T19:52:39Z",
+    "source": "example/painting-catalog-entry.txt",
+    "source_unit_id": "su_45ab2acb8923ca9a",
     "status": "active"
   },
   "su_4785da7f20c94bc0": {
     "content_fingerprint": "9bc3fd8682be52de033d1ee7160c54d48e94cd69",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:30Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/hamlet_PDF_FolgerShakespeare.pdf",
     "source_unit_id": "su_4785da7f20c94bc0",
     "status": "active"
@@ -39,7 +48,7 @@
     "content_fingerprint": "e1072cbd7e36508ebccf5ba95e457e4f11d00bfb",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:30Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/Ado.xml",
     "source_unit_id": "su_66d76b3ed6a580f6",
     "status": "active"
@@ -48,7 +57,7 @@
     "content_fingerprint": "35d07b6bffde9ae3197a23ba0726d5312cb4680c",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:31Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/romeo-and-juliet_DOC-LN_FolgerShakespeare.doc",
     "source_unit_id": "su_8913b3d9155794b2",
     "status": "active"
@@ -57,7 +66,7 @@
     "content_fingerprint": "eb436a9c62187d070209ad07d732286616c6be6d",
     "deletion_mark_iso_ts": null,
     "ingestion_iso_ts": "2026-08-04T18:27:31Z",
-    "last_upsert_iso_ts": "2026-08-04T18:48:30Z",
+    "last_upsert_iso_ts": "2026-08-04T19:48:33Z",
     "source": "data/the-taming-of-the-shrew_DOC-LN_FolgerShakespeare.doc",
     "source_unit_id": "su_c4db5b140d5bc8c7",
     "status": "active"

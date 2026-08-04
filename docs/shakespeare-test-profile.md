@@ -2,7 +2,7 @@
 
 This profile is the branch scope for Shakespeare-only testing and is not intended as a generic cross-domain profile.
 
-The branch workflow uses baseline humanities overlays as a foundation, then generates candidate metadata in preparation for ingestion of Shakespeare works.
+The branch workflow uses Shakespeare-specific taxonomy, vocabulary, and retrieval signals to generate candidate metadata in preparation for ingestion of Shakespeare works.
 
 ## Why this profile exists
 
@@ -124,6 +124,136 @@ Validated behavior for this corpus:
 - Query mentioning Othello returns Othello evidence at top rank.
 - Score diagnostics include `source_work_boost` in component output.
 
+## Metadata tiers for this branch
+
+The Shakespeare branch metadata goal is intentionally tiered so implementers can stop at the lowest useful level or add scholarly enrichment gradually.
+
+### Reference tier
+
+Minimum retrieval-facing metadata for basic source navigation and citation:
+
+- `title`
+- `author`
+- `document_type`
+- `act`, `scene`, `stanza`, `section`, or `page`
+- `speaker` or `attributed_person`
+- `line_start`, `line_end`, `passage_start`, or `passage_end`
+- `source`
+- `edition`
+
+### Context tier
+
+Additional bibliographic and historical framing for disambiguation and corpus understanding:
+
+- `composition_date`
+- `publication_or_performance_date`
+- `genre`
+- `historical_setting`
+- `alternate_titles`
+- `edition_history`
+- `related_works`
+
+### Interpretive tier
+
+Scholarly enrichment fields that should remain attributable and reviewable:
+
+- `themes`
+- `interpretive_traditions`
+- `disputed_classifications`
+- `commentary_links`
+- `critical_essays`
+- `editorial_notes`
+- `claims_with_source_attribution`
+
+At runtime these branch tiers are carried in `document_metadata.metadata_tiers` on each evidence unit when supplied by ingestion inputs.
+
+### Tier 1 field placement
+
+When the ingestion pipeline derives Tier 1 metadata directly from raw works, fields should be split by scope rather than packed into one flat record.
+
+Document-level Tier 1 fields belong in `document_metadata.metadata_tiers.reference`:
+
+- `title`
+- `author`
+- `document_type`
+- `source`
+- `edition`
+
+Passage-level Tier 1 fields belong with chunk-local source-unit metadata so they stay attached to the exact retrieved passage:
+
+- `act`
+- `scene`
+- `stanza`
+- `section`
+- `page`
+- `speaker`
+- `attributed_person`
+- `line_start`
+- `line_end`
+- `passage_start`
+- `passage_end`
+
+Operational rule:
+
+- document-scoped facts should be safe to repeat on every chunk from the same source,
+- passage-scoped facts should be derived from the local dramatic or poetic unit and reviewed against that exact unit,
+- if a field cannot be supported by the current parser output, it should remain blank rather than guessed.
+
+### Human verification for Tier 1
+
+Tier 1 is machine-derived in this branch, but it still needs lightweight human review before being treated as trusted metadata.
+
+Recommended verification workflow:
+
+- verify `title`, `author`, `source`, and `edition` against the title block, header matter, or explicit source statement in the work,
+- verify `document_type` against the known work identity and the branch taxonomy outcome,
+- verify `act`, `scene`, `stanza`, `section`, or `page` against visible structural markers in the retrieved passage,
+- verify `speaker` or `attributed_person` against the local speech label or attribution line,
+- verify `line_start`, `line_end`, `passage_start`, and `passage_end` against the exact chunk text and source-unit boundary,
+- treat normalized values as reviewable transformations, not raw truth,
+- leave unsupported fields unset and record them as missing rather than forcing completeness.
+
+Review outcome categories for ingestion diagnostics and curator checks:
+
+- exact: copied directly from explicit source text,
+- normalized: source-backed but cleaned or standardized,
+- inferred: heuristic output requiring review,
+- missing: not supported by the current source or parser output.
+
+### Suggested helpers for Tier 1 automation
+
+The branch can automate most Tier 1 extraction with a small set of deterministic helpers before any manual review step.
+
+Recommended helper set:
+
+- filename and source helper
+	- derive `source`, candidate `title`, source-format hints, and edition cues from filenames such as `othello_TXT_FolgerShakespeare.txt`
+- title-block and front-matter helper
+	- scan the first document window for explicit title, author, and edition strings
+- work-identity normalizer
+	- normalize aliases and abbreviations to branch-standard work titles and expected document types
+- taxonomy resolver
+	- map the normalized work identity to `document_type` using the Shakespeare taxonomy and source-name overrides
+- dramatic structure parser
+	- detect `act`, `scene`, `section`, and visible structural headings from XML tags, uppercase headers, and known play patterns
+- poetry structure parser
+	- detect `stanza` and passage grouping for sonnets or verse-heavy documents
+- speaker attribution parser
+	- detect speech labels and attributed speakers from dialogue prefixes, XML speaker tags, or line-head patterns
+- passage boundary helper
+	- compute `line_start`, `line_end`, `passage_start`, and `passage_end` from source-unit boundaries after structural parsing
+- page marker helper
+	- preserve page boundaries when parser output exposes them, but leave `page` unset when the format does not support stable pagination
+- verification-state helper
+	- emit per-field states such as `exact`, `normalized`, `inferred`, and `missing` so humans can review only the uncertain cases
+
+Suggested implementation order:
+
+- start with filename and title-block helpers for `title`, `author`, `source`, `edition`, and candidate work identity,
+- add taxonomy resolution for `document_type`,
+- add structure and speaker parsers for `act`, `scene`, `stanza`, `section`, and `speaker`,
+- finish with boundary and verification-state helpers for reviewable chunk-local metadata.
+
 ## Acceptance checklist (quick run)
 
 Use this checklist after each ingest/refresh cycle.
@@ -146,7 +276,7 @@ The profile is implemented through three coordinated assets:
 - taxonomy overlay: config/shakespeare_doc_type_taxonomy.json
 - synonym set: config/shakespeare_synonyms.json
 
-This composition keeps Shakespeare-specific behavior in branch-local overlays while preserving SCARAG framework core neutrality.
+This composition keeps Shakespeare-specific behavior explicit in branch-local overlays while preserving the SCARAG core pipeline.
 
 ## Legacy DOC ingestion note
 

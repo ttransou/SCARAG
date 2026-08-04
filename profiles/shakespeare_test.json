@@ -3,7 +3,7 @@
   "profile_id": "shakespeare_test",
   "name": "shakespeare_test",
   "display_name": "Shakespeare Test",
-  "description": "Shakespeare-only test branch profile for mixed-format corpora, humanities-overlay baseline behavior, and candidate metadata generation before ingestion.",
+  "description": "Shakespeare-only branch profile for mixed-format corpora, source-work-aware retrieval, and candidate metadata generation before ingestion.",
   "synonyms_path": "config/shakespeare_synonyms.json",
   "authority_references": [
     "Folger Shakespeare Library",
