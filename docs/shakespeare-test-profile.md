@@ -222,6 +222,16 @@ Review outcome categories for ingestion diagnostics and curator checks:
 - inferred: heuristic output requiring review,
 - missing: not supported by the current source or parser output.
 
+### Context metadata overlay
+
+Tier 2 context metadata is manually curated in this branch because it cannot be reliably extracted from the source texts themselves.
+
+The work context YAML supplies bibliographic, historical, and corpus-framing fields at the work level. These fields are attached during ingestion as curated document-level metadata, not inferred passage-level evidence.
+
+Curator-managed overlays live in the repository-level [overlays/](overlays/) directory, keyed by work stem (for example, [overlays/othello_TXT_FolgerShakespeare.yaml](overlays/othello_TXT_FolgerShakespeare.yaml)).
+
+This keeps SCARAG’s ingestion behavior explicit: parser-derived metadata comes from source structure, while contextual metadata comes from a reviewable human-maintained overlay.
+
 ### Suggested helpers for Tier 1 automation
 
 The branch can automate most Tier 1 extraction with a small set of deterministic helpers before any manual review step.

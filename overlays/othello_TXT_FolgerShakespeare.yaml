@@ -1,0 +1,23 @@
+metadata_tiers:
+  context:
+    composition_date: c. 1603
+    publication_or_performance_date: c. 1604
+    genre:
+      - tragedy
+      - stage_play
+    historical_setting: Venice and Cyprus in the early modern Mediterranean
+    alternate_titles:
+      - The Moor of Venice
+    edition_history:
+      - edition: Folger Shakespeare Library
+        year: 2003
+        note: Reference edition used for branch testing.
+    related_works:
+      - Hamlet
+      - King Lear
+curation:
+  curated_by: curator-name
+  curated_at: 2026-08-05
+  source_note: Example manual overlay for the Shakespeare branch.
+  review_status: draft
+  confidence: medium

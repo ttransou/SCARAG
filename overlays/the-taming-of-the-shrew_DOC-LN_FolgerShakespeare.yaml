@@ -1,0 +1,22 @@
+metadata_tiers:
+  context:
+    composition_date: c. 1590-1594
+    publication_or_performance_date: c. 1594
+    genre:
+      - comedy
+      - stage_play
+    historical_setting: Padua and Petruchio's household
+    alternate_titles: []
+    edition_history:
+      - edition: Folger Shakespeare Library
+        year: 2003
+        note: Reference edition used for branch testing.
+    related_works:
+      - Much Ado About Nothing
+      - Twelfth Night
+curation:
+  curated_by: curator-name
+  curated_at: 2026-08-05
+  source_note: Starter overlay for The Taming of the Shrew.
+  review_status: draft
+  confidence: medium

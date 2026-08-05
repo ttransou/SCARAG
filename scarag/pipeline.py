@@ -5,6 +5,8 @@ import hashlib
 import json
 import re
 from collections import Counter, defaultdict
+
+import yaml
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -12,7 +14,13 @@ from typing import Any
 from scarag.config import RagConfig
 from scarag.ingestion.loader import load_documents_with_diagnostics
 from scarag.lifecycle import LifecycleRecord, LifecycleStateStore
-from scarag.metadata import EvidenceMetadata, build_confidence_inputs, build_metadata_tiers, utc_now_iso
+from scarag.metadata import (
+    EvidenceMetadata,
+    build_confidence_inputs,
+    build_metadata_tiers,
+    build_verification_states,
+    utc_now_iso,
+)
 from scarag.retrieval.interfaces import RetrievalRequest, RetrievalResponse, Retriever
 from scarag.retrieval.vector_backend import HashingVectorEmbedder, VectorEmbedder, cosine_similarity
 
@@ -99,6 +107,7 @@ _SHAKESPEARE_AUTHOR_RE = re.compile(r"\bwilliam\s+shakespeare\b", re.IGNORECASE)
 _FOLGER_EDITION_RE = re.compile(r"\bfolger\s+shakespeare(?:\s+library)?\b", re.IGNORECASE)
 _ISE_EDITION_RE = re.compile(r"\binternet\s+shakespeare\s+editions?\b", re.IGNORECASE)
 _TITLE_BLOCK_EXCLUDE_RE = re.compile(r"^(act|scene|by\b|enter\b|exit\b|exeunt\b)", re.IGNORECASE)
+_ROMAN_NUMERAL_MAP = {"i": 1, "ii": 2, "iii": 3, "iv": 4, "v": 5, "vi": 6, "vii": 7, "viii": 8, "ix": 9, "x": 10}
 
 
 def _tokenize(text: str) -> list[str]:
@@ -242,6 +251,93 @@ def _document_with_inferred_metadata(
     enriched_document = dict(document)
     enriched_document["metadata"] = merged_metadata
     return enriched_document
+
+
+def _normalize_structure_value(value: Any) -> str | int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return int(value)
+    if isinstance(value, str):
+        stripped = value.strip()
+        if not stripped:
+            return None
+        return stripped
+    text = str(value).strip()
+    return text or None
+
+
+def _roman_to_int(value: str) -> int | None:
+    normalized = value.strip().lower()
+    if not normalized:
+        return None
+    if normalized.isdigit():
+        return int(normalized)
+    if normalized in _ROMAN_NUMERAL_MAP:
+        return _ROMAN_NUMERAL_MAP[normalized]
+    total = 0
+    previous = 0
+    for char in reversed(normalized):
+        current = {"i": 1, "v": 5, "x": 10, "l": 50, "c": 100, "d": 500, "m": 1000}.get(char)
+        if current is None:
+            return None
+        if current < previous:
+            total -= current
+        else:
+            total += current
+            previous = current
+    return total or None
+
+
+def _infer_passage_structure(text: str) -> dict[str, Any]:
+    structure: dict[str, Any] = {}
+    if not text:
+        return structure
+
+    for pattern_name, pattern in (
+        ("act", r"\bact\s+([ivxlcdm]+|\d+)\b"),
+        ("scene", r"\bscene\s+([ivxlcdm]+|\d+)\b"),
+        ("stanza", r"\bstanza\s+([ivxlcdm]+|\d+)\b"),
+        ("section", r"\bsection\s+([ivxlcdm]+|\d+)\b"),
+        ("page", r"\bpage\s+([ivxlcdm]+|\d+)\b"),
+    ):
+        match = re.search(pattern, text, re.IGNORECASE)
+        if not match:
+            continue
+        value = _normalize_structure_value(match.group(1))
+        if value is None:
+            continue
+        if isinstance(value, str) and value.isdigit():
+            structure[pattern_name] = value
+        elif isinstance(value, str):
+            roman_value = _roman_to_int(value)
+            structure[pattern_name] = str(roman_value) if roman_value is not None else value
+        else:
+            structure[pattern_name] = str(value)
+
+    speaker_match = re.search(r"^\s*([A-Z][A-Z0-9'’\-\s]{1,30}):", text, re.MULTILINE)
+    if speaker_match:
+        structure["speaker"] = speaker_match.group(1).strip()
+
+    attributed_person_match = re.search(r"\b(?:as|by)\s+([A-Z][A-Za-z'’\-]+(?:\s+[A-Z][A-Za-z'’\-]+)*)\b", text)
+    if attributed_person_match:
+        structure["attributed_person"] = attributed_person_match.group(1).strip()
+
+    stage_cue_match = re.search(r"\[(.*?)\]", text)
+    if stage_cue_match:
+        cue = re.sub(r"\s+", " ", stage_cue_match.group(1).strip())
+        cue = re.sub(r"[.]+$", "", cue)
+        if cue:
+            structure["stage_cue"] = cue
+
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if lines:
+        structure["line_start"] = 1
+        structure["line_end"] = len(lines)
+        structure["passage_start"] = 1
+        structure["passage_end"] = len(lines)
+
+    return structure
 
 
 def _parse_iso_ts(value: str | None) -> tuple[datetime | None, bool]:
@@ -516,12 +612,86 @@ def _looks_tabular(text: str) -> bool:
     return _is_tabular_delimiter_profile(lines, ",")
 
 
+def _load_work_overlay(source: str) -> dict[str, Any]:
+    source_path = Path(source)
+    source_key = source_path.stem
+    candidates: list[Path] = []
+
+    repo_root = Path(__file__).resolve().parent.parent
+    candidates.extend(
+        [
+            repo_root / "overlays" / f"{source_key}.yaml",
+            repo_root / "overlays" / f"{source_key}.yml",
+        ]
+    )
+
+    if source_path.is_absolute():
+        candidates.extend(
+            [
+                source_path.with_suffix(".yaml"),
+                source_path.with_suffix(".yml"),
+                source_path.parent / f"{source_path.stem}.yaml",
+                source_path.parent / f"{source_path.stem}.yml",
+            ]
+        )
+    else:
+        candidates.extend(
+            [
+                Path(source_path.as_posix() + ".yaml"),
+                Path(source_path.as_posix() + ".yml"),
+                source_path.parent / f"{source_path.stem}.yaml",
+                source_path.parent / f"{source_path.stem}.yml",
+            ]
+        )
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        if not candidate.exists() or candidate in seen:
+            continue
+        seen.add(candidate)
+        try:
+            payload = yaml.safe_load(candidate.read_text(encoding="utf-8"))
+        except (OSError, yaml.YAMLError):
+            continue
+        if isinstance(payload, dict):
+            return payload
+    return {}
+
+
+def _merge_work_overlay_into_document(document: dict[str, Any], source: str) -> dict[str, Any]:
+    overlay = _load_work_overlay(source)
+    if not overlay:
+        return document
+
+    merged = dict(document)
+    existing_metadata = merged.get("metadata") if isinstance(merged.get("metadata"), dict) else {}
+    overlay_metadata = overlay.get("metadata") if isinstance(overlay.get("metadata"), dict) else {}
+    merged_metadata = dict(existing_metadata)
+    merged_metadata.update(overlay_metadata)
+    merged["metadata"] = merged_metadata
+
+    existing_tiers = merged.get("metadata_tiers") if isinstance(merged.get("metadata_tiers"), dict) else {}
+    overlay_tiers = overlay.get("metadata_tiers") if isinstance(overlay.get("metadata_tiers"), dict) else {}
+    merged_tiers = {}
+    if existing_tiers:
+        merged_tiers.update(existing_tiers)
+    if overlay_tiers:
+        for tier_name, tier_payload in overlay_tiers.items():
+            if isinstance(tier_payload, dict):
+                merged_tiers[tier_name] = {**merged_tiers.get(tier_name, {}), **tier_payload}
+    if merged_tiers:
+        merged["metadata_tiers"] = merged_tiers
+
+    return merged
+
+
 def _document_metadata_payload(
     table_metadata: Any,
     image_markers: Any,
     *,
     metadata: Any,
     metadata_tiers: Any,
+    explicit_metadata: Any,
     doc_type: str,
     source: str,
     source_work_title: str | None,
@@ -536,7 +706,15 @@ def _document_metadata_payload(
         source=source,
         source_work_title=source_work_title,
     )
-    if not tables and not markers and not tiers:
+    verification_states = build_verification_states(
+        metadata=metadata,
+        metadata_tiers=metadata_tiers,
+        doc_type=doc_type,
+        source=source,
+        source_work_title=source_work_title,
+        explicit_metadata=explicit_metadata,
+    )
+    if not tables and not markers and not tiers and not verification_states:
         return None
 
     payload: dict[str, Any] = {
@@ -555,6 +733,8 @@ def _document_metadata_payload(
     }
     if tiers:
         payload["metadata_tiers"] = tiers
+    if verification_states:
+        payload["verification_states"] = verification_states
     if include_details:
         payload["tables"] = tables
         payload["image_markers"] = markers
@@ -1066,6 +1246,8 @@ def build_chunk_index(
             doc_type_taxonomy,
             extraction_method,
         )
+        explicit_metadata = document.get("metadata")
+        document = _merge_work_overlay_into_document(document, source)
         document = _document_with_inferred_metadata(
             document,
             source=source,
@@ -1080,6 +1262,7 @@ def build_chunk_index(
             image_markers,
             metadata=document.get("metadata"),
             metadata_tiers=document.get("metadata_tiers"),
+            explicit_metadata=explicit_metadata,
             doc_type=doc_type,
             source=source,
             source_work_title=source_work_title,
@@ -1125,6 +1308,7 @@ def build_chunk_index(
                 unit_end = int(prose_unit.get("unit_end_word_index", unit_start))
                 unit_index = int(prose_unit.get("source_unit_index", 0))
 
+                prose_structure = _infer_passage_structure(unit_text)
                 for chunk_text, chunk_meta in _chunk_prose_with_metadata(
                     unit_text,
                     config.chunk_size,
@@ -1153,6 +1337,7 @@ def build_chunk_index(
                             "source_unit_boundary": {
                                 "unit_start_word_index": unit_start,
                                 "unit_end_word_index": unit_end,
+                                **prose_structure,
                             },
                         }
                     )

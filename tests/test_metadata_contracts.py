@@ -90,6 +90,45 @@ def test_document_metadata_tiers_propagate_to_prose_chunks(tmp_path: Path) -> No
     assert tiers["interpretive"]["themes"] == ["jealousy", "service"]
 
 
+def test_yaml_work_overlay_merges_context_metadata_into_document_metadata(tmp_path: Path) -> None:
+    config = RagConfig(lifecycle_state_path=str(tmp_path / "lifecycle-state.json"))
+    source = str(tmp_path / "othello_TXT_FolgerShakespeare.txt")
+    overlay_path = tmp_path / "othello_TXT_FolgerShakespeare.yaml"
+    overlay_path.write_text(
+        """
+metadata_tiers:
+  context:
+    genre: tragedy
+    historical_setting: Venice and Cyprus
+    composition_date: c. 1603
+curation:
+  review_status: draft
+  curated_by: test-curator
+""".strip(),
+        encoding="utf-8",
+    )
+    docs = [
+        {
+            "source": source,
+            "text": "Iago speaks in Act 1 Scene 1.",
+            "doc_type": "play_tragedy",
+            "extraction_method": "text_file_parser",
+            "extraction_ts": "2026-01-01T00:00:00Z",
+        }
+    ]
+
+    chunks = build_chunk_index(docs, config)
+
+    assert chunks
+    metadata = chunks[0]["document_metadata"]
+    assert isinstance(metadata, dict)
+    tiers = metadata.get("metadata_tiers")
+    assert isinstance(tiers, dict)
+    assert tiers["context"]["genre"] == "tragedy"
+    assert tiers["context"]["historical_setting"] == "Venice and Cyprus"
+    assert tiers["context"]["composition_date"] == "c. 1603"
+
+
 def test_tier1_helpers_infer_reference_metadata_from_filename_and_title_block(tmp_path: Path) -> None:
     config = RagConfig.default(lifecycle_state_path=str(tmp_path / "lifecycle-state.json"))
     source = str(tmp_path / "hamlet_PDF_FolgerShakespeare.txt")
@@ -115,3 +154,56 @@ def test_tier1_helpers_infer_reference_metadata_from_filename_and_title_block(tm
     assert tiers["reference"]["edition"] == "Folger Shakespeare Library"
     assert tiers["reference"]["source"] == source
     assert tiers["reference"]["document_type"] == "play_tragedy"
+
+
+def test_passage_level_structure_inference_populates_chunk_boundary_metadata(tmp_path: Path) -> None:
+    config = RagConfig(lifecycle_state_path=str(tmp_path / "lifecycle-state.json"), chunk_size=40, overlap=0)
+    docs = [
+        {
+            "source": str(tmp_path / "hamlet.txt"),
+            "text": (
+                "Act 1, Scene 1.\n"
+                "HAMLET: To be, or not to be.\n"
+                "[Enter Ghost.]\n"
+                "Page 2."
+            ),
+            "doc_type": "play_tragedy",
+            "extraction_method": "text_file_parser",
+            "extraction_ts": "2026-01-01T00:00:00Z",
+        }
+    ]
+
+    chunks = build_chunk_index(docs, config)
+
+    assert chunks
+    boundary = chunks[0]["source_unit_boundary"]
+    assert boundary["act"] == "1"
+    assert boundary["scene"] == "1"
+    assert boundary["speaker"] == "HAMLET"
+    assert boundary["stage_cue"] == "Enter Ghost"
+    assert boundary["page"] == "2"
+
+
+def test_document_metadata_includes_verification_states_for_reference_tier(tmp_path: Path) -> None:
+    config = RagConfig(lifecycle_state_path=str(tmp_path / "lifecycle-state.json"))
+    docs = [
+        {
+            "source": str(tmp_path / "othello.txt"),
+            "text": "Othello\nWilliam Shakespeare\nAct 1",
+            "doc_type": "unknown",
+            "extraction_method": "text_file_parser",
+            "extraction_ts": "2026-01-01T00:00:00Z",
+        }
+    ]
+
+    chunks = build_chunk_index(docs, config)
+
+    assert chunks
+    metadata = chunks[0]["document_metadata"]
+    assert isinstance(metadata, dict)
+    verification_states = metadata.get("verification_states")
+    assert isinstance(verification_states, dict)
+    assert verification_states["reference"]["title"]["state"] == "inferred"
+    assert verification_states["reference"]["author"]["state"] == "inferred"
+    assert verification_states["reference"]["document_type"]["state"] == "inferred"
+    assert verification_states["reference"]["source"]["state"] == "inferred"

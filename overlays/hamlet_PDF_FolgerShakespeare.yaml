@@ -1,0 +1,23 @@
+metadata_tiers:
+  context:
+    composition_date: c. 1599-1601
+    publication_or_performance_date: c. 1600-1607, 1623 disputed
+    genre:
+      - tragedy
+      - stage_play
+    historical_setting: Denmark
+    alternate_titles: The Tragedy of Hamlet, Prince of Denmark
+    edition_history:
+      - edition: Folger Shakespeare Library
+        year: 2003
+        note: Reference edition used for branch testing.
+    related_works:
+      - Othello
+      - King Lear
+      - Macbeth
+curation:
+  curated_by: T. Transou
+  curated_at: 2026-08-05
+  source_note: Starter overlay for Hamlet. Wikipedia references
+  review_status: reviewed
+  confidence: high

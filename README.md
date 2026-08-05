@@ -1,11 +1,11 @@
 # SCARAG 🐦‍⬛
 Schema-Conscious Agnostic RAG (Retrieval-Augmented Generation)
 
-**Metadata-first RAG tuned for the Shakespeare corpus in this branch**
+**SCARAG as the framework; the Shakespeare corpus as its own branch object**
 
 T. Transou - June 2026 - Active Development 🚧
 
-SCARAG is a framework for building retrieval-augmented systems that treat evidence, provenance, lifecycle state, and domain semantics as first-class design concerns. It is intended for implementors who need a grounded and auditable RAG stack rather than an opaque text-only retrieval shortcut.
+SCARAG is the framework for building retrieval-augmented systems that treat evidence, provenance, lifecycle state, and domain semantics as first-class design concerns. This branch treats the Shakespeare corpus as its own experimental object: a local app and testbed for corpus testing, the historiography of Shakespeare works, and potential literary analysis.
 
 SCARAG functions as a governed context layer: detailed definition and proof criteria are documented in [docs/philosophy.md](docs/philosophy.md) and [docs/evaluation-blueprint.md](docs/evaluation-blueprint.md).
 
@@ -29,7 +29,7 @@ SCARAG functions as a governed context layer: detailed definition and proof crit
 - [Repo Map (Current)](#repo-map-current)
 
 ## One-Sentence Claim
-This branch of SCARAG is a metadata-first RAG implementation tuned for Shakespeare corpus retrieval, where provenance, lifecycle, confidence, and source-work semantics are first-class concerns.
+This branch uses SCARAG as the framework while treating the Shakespeare corpus as a distinct testbed for corpus testing and a local app for exploring the historiography of Shakespeare works and potential literary analysis.
 
 ## Why SCARAG Exists
 The central claim is simple: retrieval systems should make evidence legible, not merely fluent.
@@ -41,9 +41,17 @@ The central claim is simple: retrieval systems should make evidence legible, not
 SCARAG is not designed to make generation sound more confident. It is designed to make evidence legible, traceable, and governable.
 
 ## Branch Positioning
-This repository branch is the Shakespeare-focused implementation surface for SCARAG. It keeps the core SCARAG pipeline, but the default runtime, corpus assumptions, and profile guidance are streamlined around mixed-format Shakespeare works rather than a generic cross-domain baseline.
+This repository branch keeps SCARAG as the framework layer while making the Shakespeare corpus the focal object of study. The default runtime, profile guidance, and reference app are aimed at corpus testing and local exploration of Shakespeare works and their interpretive history rather than a generic cross-domain baseline.
 
-The README is written as a practical orientation document rather than a changelog. Detailed implementation status, corpus-specific profile notes, and evolving development history belong in the documentation set under docs/.
+The branch currently centers on a compact corpus fixture set under [data/](data/) that includes plays, sonnets, and editorially shaped text variants. The default runtime profile is [profiles/shakespeare_test.json](profiles/shakespeare_test.json), which drives work-aware retrieval, Shakespeare-specific document typing, and branch-specific vocabulary assumptions for works such as Much Ado About Nothing, Hamlet, Othello, Romeo and Juliet, The Taming of the Shrew, Titus Andronicus, and the Sonnets.
+
+The README is written as a practical orientation document rather than a changelog. Detailed implementation status, corpus-specific profile notes, and evolving development history belong in the documentation set under [docs/](docs/).
+
+### Tier 3 and the branch’s use-facing purpose
+
+This branch defines Tier 3 interpretive metadata as an optional layer rather than a default requirement. Tier 3 is meant for scholarly enrichment only when the downstream use case benefits from it: for example, when users are querying the corpus for literary history, editorial interpretation, thematic comparison, or citation-oriented commentary rather than only for source retrieval and passage navigation.
+
+That means Tier 3 is contingent on three things: the use case, the kind of data being curated, and the way the data will be surfaced in SCARAG and its reference interface. A local corpus explorer may need only lightweight context metadata, while a more interpretive interface may benefit from attributable themes, editorial notes, disputed classifications, and links to commentary. In this branch, Tier 3 remains deliberately reviewable and optional so it can be expanded or trimmed based on the needs of the specific interface and the evidentiary burden of the query experience.
 
 ## Core Premise
 Most RAG systems fail long before generation quality becomes the main issue. They fail because retrieval lacks evidence governance: source identity, metadata quality, freshness, lifecycle state, and domain semantics.
@@ -115,6 +123,7 @@ The README stays high-level. Detailed implementation notes, contracts, Shakespea
 - Core framework package: [scarag/](scarag)
 - Reference API: [api_server.py](api_server.py)
 - Reference UI: [frontend/](frontend)
+- Shakespeare corpus fixtures: [data/](data/)
 - Operations and evaluation scripts: [scripts/](scripts)
 - Shakespeare-oriented configuration and profiles: [config/](config) and [profiles/](profiles)
 - Validation and diagnostics assets: [tests/](tests), [eval/](eval), and [docs/](docs)
@@ -143,6 +152,7 @@ For explicit deployment ownership boundaries, see [docs/deployment-boundaries.md
 
 ## Reality Snapshot
 - Default runtime profile is `shakespeare_test` for this branch.
+- The active corpus fixture set is the Shakespeare sample collection under [data/](data/), including XML, TXT, and legacy DOC sources plus supporting profile and taxonomy assets.
 - Generation modes available: extractive (default), mock, and live placeholder.
 - Live mode is an adapter hook and currently returns a clear provider-not-configured message.
 - Generation returns structured grounding diagnostics, including abstention reason codes and cited chunk ids, behind the API envelope.
@@ -161,7 +171,7 @@ For explicit deployment ownership boundaries, see [docs/deployment-boundaries.md
 - Python dependencies: install from `requirements.txt` before running API or tests.
 - Node.js: an LTS Node runtime is available for the reference frontend.
 - Frontend dependencies: install from `frontend/package.json` before running the UI.
-- Corpus layout: default corpus path is `data/`; evaluator datasets live under `eval/datasets`; evaluator reports are written to `eval/reports`.
+- Corpus layout: default corpus path is `data/`, populated with Shakespeare fixtures such as `Ado.xml`, `Son.xml`, `othello_TXT_FolgerShakespeare.txt`, and `titus-andronicus_TXT_FolgerShakespeare.txt`; evaluator datasets live under `eval/datasets`; evaluator reports are written to `eval/reports`.
 - Default branch profile: `shakespeare_test`; override it only when intentionally comparing other overlays.
 - Startup commands: baseline startup path is `bash ./start_everything.sh`; manual frontend/API startup commands are documented below.
 

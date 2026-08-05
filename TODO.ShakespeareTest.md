@@ -51,7 +51,7 @@ This file tracks branch-specific work for Shakespeare-only ingestion testing.
 	- [x] helper: title-block and front-matter parser
 	- [x] helper: work-identity normalizer
 	- [x] helper: taxonomy resolver
-- [ ] Step 3: implement and validate passage-level inference for Tier 1 location fields from source text structure: `act`, `scene`, `stanza`, `section`, `page`, `speaker`, `attributed_person`, and line or passage boundaries.
+- [x] Step 3: implement and validate passage-level inference for Tier 1 location fields from source text structure: `act`, `scene`, `stanza`, `section`, `page`, `speaker`, `attributed_person`, and line or passage boundaries.
 	- helper: dramatic structure parser
 	- helper: poetry structure parser
 	- helper: speaker attribution parser
@@ -59,12 +59,25 @@ This file tracks branch-specific work for Shakespeare-only ingestion testing.
 	- helper: passage boundary helper
 	- helper: page marker helper
 	- design choice: decide whether passage-local dramatic metadata belongs in an expanded `source_unit_boundary` payload or a dedicated dramatic-structure metadata block
-- [ ] Step 4: add ingestion diagnostics that show where each Tier 1 field was stored, whether it was exact, normalized, inferred, or missing, and which values require human review.
+- [x] Step 4: add ingestion diagnostics that show where each Tier 1 field was stored, whether it was exact, normalized, inferred, or missing, and which values require human review.
 	- helper: verification-state emitter
 - [x] Step 4a: ensure repeated speaker labels and stage directions are marked as dramatic structure rather than generic boilerplate for retrieval scoring.
-- [ ] Step 4b: emit per-field verification states for Tier 1 reference metadata so review can distinguish `exact`, `normalized`, `inferred`, and `missing`.
-- [ ] Step 5: define the manual curation format for Tier 2 Context metadata so bibliographic and historical fields can be attached after raw ingestion.
-- [ ] Step 6: define the optional manual curation format for Tier 3 Interpretive metadata so scholarly enrichment remains attributable and reviewable.
+- [x] Step 4b: emit per-field verification states for Tier 1 reference metadata so review can distinguish `exact`, `normalized`, `inferred`, and `missing`.
+- [x] Step 5: define the manual curation format for Tier 2 Context metadata so bibliographic and historical fields can be attached after raw ingestion.
+	- manual curation schema: `metadata_tiers.context` plus a `curation` block attached to the document record
+	- required fields for manual curation: `composition_date`, `publication_or_performance_date`, `genre`, `historical_setting`, `alternate_titles`, `edition_history`, `related_works`
+	- curator provenance fields: `curated_by`, `curated_at`, `source_note`, `review_status`, `confidence`
+	- allowed review statuses: `draft`, `reviewed`, `approved`, `rejected`
+	- storage pattern: keep branch-local context overlays as document-level metadata, not chunk-level defaults, so they can be attached after ingestion without changing baseline retrieval behavior
+	- suggested file format: YAML overlay keyed by source work or source path for local curation and review, because it is more natural for narrative curator input than JSON
+	- reference template: [docs/shakespeare-tier2-curation-example.yaml](docs/shakespeare-tier2-curation-example.yaml)
+- [x] Step 6: define the optional manual curation format for Tier 3 Interpretive metadata so scholarly enrichment remains attributable and reviewable.
+	- manual curation schema: `metadata_tiers.interpretive` plus a `curation` block attached to the document record
+	- required fields for manual curation: `themes`, `interpretive_traditions`, `disputed_classifications`, `commentary_links`, `critical_essays`, `editorial_notes`, `claims_with_source_attribution`
+	- curator provenance fields: `curated_by`, `curated_at`, `source_note`, `review_status`, `confidence`
+	- allowed review statuses: `draft`, `reviewed`, `approved`, `rejected`
+	- storage pattern: keep interpretive overlays branch-local and document-level so they remain optional and reviewable without changing baseline retrieval behavior
+	- suggested file format: YAML overlay keyed by source work or source path for local curation and review
 - [ ] Step 7: keep Tier 2 and Tier 3 overlays branch-local and curator-managed; do not require them for baseline Shakespeare ingestion.
 
 ## Repo Streamlining TODO

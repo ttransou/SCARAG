@@ -1,0 +1,22 @@
+metadata_tiers:
+  context:
+    composition_date: c. 1598-1599
+    publication_or_performance_date: c. 1598-1600
+    genre:
+      - comedy
+      - stage_play
+    historical_setting: Messina in Sicily
+    alternate_titles: []
+    edition_history:
+      - edition: Folger Shakespeare Library
+        year: 2003
+        note: Reference edition used for branch testing. Downloaded from Folger Shakespeare Library Digital Texts, 2026-08-05.
+    related_works:
+      - Twelfth Night
+      - As You Like It
+curation:
+  curated_by: T. Transou
+  curated_at: 2026-08-05
+  source_note: Starter overlay for Much Ado About Nothing, items confirmed.
+  review_status: reviewed
+  confidence: high

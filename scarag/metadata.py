@@ -109,6 +109,74 @@ def _tier_payload_from_mapping(mapping: dict[str, Any], fields: tuple[str, ...])
     return payload
 
 
+def build_verification_states(
+    *,
+    metadata: Any = None,
+    metadata_tiers: Any = None,
+    doc_type: str,
+    source: str,
+    source_work_title: str | None = None,
+    explicit_metadata: Any = None,
+) -> dict[str, Any] | None:
+    flat_metadata = metadata if isinstance(metadata, dict) else {}
+    explicit_input = explicit_metadata if isinstance(explicit_metadata, dict) else {}
+    explicit_tiers = metadata_tiers if isinstance(metadata_tiers, dict) else {}
+    reference_tier = {}
+
+    for field_name in REFERENCE_METADATA_FIELDS:
+        if field_name in explicit_input:
+            explicit_value = explicit_input.get(field_name)
+            normalized_explicit = _normalize_metadata_value(explicit_value)
+            if normalized_explicit is not None:
+                reference_tier[field_name] = {
+                    "value": normalized_explicit,
+                    "state": "exact",
+                }
+                continue
+
+        explicit_reference = explicit_tiers.get("reference") if isinstance(explicit_tiers.get("reference"), dict) else {}
+        explicit_tier_value = explicit_reference.get(field_name)
+        normalized_explicit_tier = _normalize_metadata_value(explicit_tier_value)
+        if normalized_explicit_tier is not None:
+            reference_tier[field_name] = {
+                "value": normalized_explicit_tier,
+                "state": "normalized",
+            }
+            continue
+
+        direct_value = flat_metadata.get(field_name)
+        normalized_direct = _normalize_metadata_value(direct_value)
+        if normalized_direct is not None:
+            reference_tier[field_name] = {
+                "value": normalized_direct,
+                "state": "inferred",
+            }
+            continue
+
+        if field_name == "document_type" and doc_type:
+            reference_tier[field_name] = {
+                "value": doc_type,
+                "state": "inferred",
+            }
+        elif field_name == "source" and source:
+            reference_tier[field_name] = {
+                "value": source,
+                "state": "inferred",
+            }
+        elif field_name == "title" and source_work_title and source_work_title.lower() != "unknown":
+            reference_tier[field_name] = {
+                "value": source_work_title,
+                "state": "inferred",
+            }
+        else:
+            reference_tier[field_name] = {
+                "value": None,
+                "state": "missing",
+            }
+
+    return {"reference": reference_tier} if reference_tier else None
+
+
 def build_metadata_tiers(
     *,
     metadata: Any = None,

@@ -1,0 +1,23 @@
+metadata_tiers:
+  context:
+    composition_date: c. 1590s
+    publication_or_performance_date: 1609
+    genre:
+      - sonnet_sequence
+      - lyric_poetry
+    historical_setting: Early modern England
+    alternate_titles:
+      - Shakespeare's Sonnets
+    edition_history:
+      - edition: Folger Shakespeare Library
+        year: 2003
+        note: Reference edition used for branch testing.
+    related_works:
+      - Venus and Adonis
+      - The Rape of Lucrece
+curation:
+  curated_by: curator-name
+  curated_at: 2026-08-05
+  source_note: Starter overlay for the Shakespeare Sonnets selection.
+  review_status: draft
+  confidence: medium

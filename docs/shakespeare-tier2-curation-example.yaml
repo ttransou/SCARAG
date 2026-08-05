@@ -1,0 +1,65 @@
+# Example curator overlay for one Shakespeare work.
+# This file is intended to be copied per work and filled in manually.
+
+work_id: othello
+source_path: data/othello_TXT_FolgerShakespeare.txt
+source_label: Folger Shakespeare Library transcription
+
+metadata_tiers:
+  context:
+    composition_date:
+      value: c. 1603
+      source_note: Editorial dating supplied by the reference edition.
+      review_status: reviewed
+      confidence: high
+
+    publication_or_performance_date:
+      value: c. 1604
+      source_note: Likely first performance date noted in editorial notes.
+      review_status: draft
+      confidence: medium
+
+    genre:
+      value:
+        - tragedy
+        - stage_play
+      source_note: Branch taxonomy assignment for dramatic works.
+      review_status: approved
+      confidence: high
+
+    historical_setting:
+      value: Venice and Cyprus in the early modern Mediterranean
+      source_note: Context supplied by the edition introduction.
+      review_status: reviewed
+      confidence: medium
+
+    alternate_titles:
+      value:
+        - The Moor of Venice
+      source_note: Alternate title noted by the edition.
+      review_status: reviewed
+      confidence: high
+
+    edition_history:
+      value:
+        - edition: Folger Shakespeare Library
+          year: 2003
+          note: Used as the default branch reference edition.
+      source_note: Curator-supplied bibliographic context.
+      review_status: draft
+      confidence: medium
+
+    related_works:
+      value:
+        - Hamlet
+        - King Lear
+      source_note: Related plays commonly grouped in editorial discussion.
+      review_status: draft
+      confidence: low
+
+  curation:
+    curated_by: curator-name
+    curated_at: 2026-08-05
+    source_note: Manual context entry prepared for the Shakespeare corpus test branch.
+    review_status: draft
+    confidence: medium
